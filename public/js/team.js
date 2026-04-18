@@ -14,6 +14,7 @@ import {
 import { state } from './state.js';
 import { syncServerClock } from './clock.js';
 import { getTaskEditPermission, taskEditDenyMessage } from './permissions.js';
+import { renderTaskList } from './tasks.js';
 import { sendAssignmentPush } from './push.js';
 const lucide = window.lucide;
 

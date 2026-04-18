@@ -610,7 +610,8 @@ function renderTaskList(dateKey) {
 
         let photosHTML = (task.photos || []).map((p, i) => `<div class="relative group/photo w-24 h-24 sm:w-28 sm:h-28 rounded-[12px] border border-[#e5e7eb] overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onclick="viewImage('${p}')"><img src="${p}" class="w-full h-full object-cover">${state.user ? `<button onclick="event.stopPropagation(); askDelete('photo', '${task.id}', null, ${i})" class="absolute top-1 right-1 bg-[#ef4444] text-white p-1 rounded-full opacity-0 group-hover/photo:opacity-100 transition-opacity shadow-sm"><i data-lucide="x" class="w-2.5 h-2.5"></i></button>` : ''}</div>`).join('');
         const hasAssignee = task.assignee && task.assignee.trim() !== '';
-        let uploadBtn = (state.user && !task.completed && canEdit && hasAssignee) ? `<label class="w-24 h-24 sm:w-28 sm:h-28 rounded-[12px] border-2 border-dashed border-[#d1d5db] text-[#94a3b8] text-[10px] font-bold hover:text-[#e41e26] hover:border-[#e41e26]/40 hover:bg-[#fef2f2] flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-[#fafafa] transition-all"><input type="file" accept="image/*" capture="environment" onchange="handleRealPhoto(this, '${task.id}')"><i data-lucide="camera" class="w-5 h-5"></i><span class="uppercase tracking-wider">Foto</span></label>` : '';
+        const canUpload = isAdmin || (!task.completed && canEdit && hasAssignee);
+        let uploadBtn = (state.user && canUpload) ? `<label class="w-24 h-24 sm:w-28 sm:h-28 rounded-[12px] border-2 border-dashed border-[#d1d5db] text-[#94a3b8] text-[10px] font-bold hover:text-[#e41e26] hover:border-[#e41e26]/40 hover:bg-[#fef2f2] flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-[#fafafa] transition-all"><input type="file" accept="image/*" capture="environment" onchange="handleRealPhoto(this, '${task.id}')"><i data-lucide="camera" class="w-5 h-5"></i><span class="uppercase tracking-wider">Foto</span></label>` : '';
         let commentsHTML = (task.comments || []).map((c, i) => {
             const isAdminComment = c.matricula && String(c.matricula).includes('@');
             const identityLabel = isAdminComment ? `<span class="text-[#b0b0b0] font-medium text-[9px]">${c.matricula}</span>` : `<span class="text-[#b0b0b0] font-medium text-[9px]">#${c.matricula || 'N/A'}</span>`;
@@ -1151,7 +1152,7 @@ export function stopTaskSubscription() {
   }
 }
 
-export { subscribeToTasks, renderCalendar, playIntro, animatePageTransition };
+export { subscribeToTasks, renderCalendar, playIntro, animatePageTransition, renderTaskList };
 
 
 
