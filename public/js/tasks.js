@@ -1,6 +1,7 @@
 import { gsap, confetti } from './vendor.js';
 import {
   db,
+  collection,
   collectionGroup,
   query,
   where,
@@ -9,6 +10,7 @@ import {
   updateDoc,
   deleteDoc,
   setDoc,
+  addDoc,
   doc,
   getDocs,
 } from './firebase-config.js';
@@ -23,6 +25,21 @@ const lucide = window.lucide;
 
 let unsubscribeTasks = null;
 let initialLoadComplete = false;
+
+// ── Admin Activity Log ──
+async function logAdmin(action, details) {
+    if (!state.user || state.user.role !== 'admin') return;
+    try {
+        await addDoc(collection(db, 'admin_logs'), {
+            action,
+            admin: state.user.name || state.user.nome || state.user.id || 'Admin',
+            timestamp: new Date().toISOString(),
+            ...details
+        });
+    } catch (e) { console.warn('Log failed:', e); }
+}
+
+function fmtDate(d) { const p = (d || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d; }
 // Notifications are provided by auth-ui.js
 function sendLocalNotification(title, body) {
   if (typeof window.__sendLocalNotification === 'function') {
@@ -201,28 +218,62 @@ function updateFilterCollaborators() {
 }
 
 // --- CALENDAR DRAG & DROP (between dates) ---
+let isDragging = false;
+
+function resetDragState() {
+    isDragging = false;
+    state.calendarDragTaskId = null;
+    listDraggedId = null;
+
+    // Restore modal fully
+    const taskModal = document.getElementById('task-modal');
+    if (taskModal) {
+        taskModal.style.pointerEvents = '';
+        taskModal.style.opacity = '';
+        taskModal.style.transition = 'opacity .3s ease';
+        taskModal.style.opacity = '1';
+    }
+
+    // Clean all drag visual states
+    document.querySelectorAll('.cal-drag-over').forEach(c => c.classList.remove('cal-drag-over'));
+    document.querySelectorAll('.dragging').forEach(c => c.classList.remove('dragging'));
+
+    const dragHint = document.getElementById('drag-hint');
+    if (dragHint) dragHint.classList.add('hidden');
+}
+
 async function handleCalendarDrop(newDateKey) {
     const taskId = state.calendarDragTaskId;
-    if (!taskId) return;
+    if (!taskId) { resetDragState(); return; }
     const task = state.tasks.find(t => t.id === taskId);
-    if (!task || task.date === newDateKey) return;
+
+    // Dropped on same date or invalid = just cancel cleanly
+    if (!task || task.date === newDateKey) {
+        resetDragState();
+        return;
+    }
+
     const isAdmin = state.user && state.user.role === 'admin';
-    if (!isAdmin) { showCustomAlert('Apenas administradores podem mover tarefas!'); return; }
+    if (!isAdmin) { showCustomAlert('Apenas administradores podem mover tarefas!'); resetDragState(); return; }
+
     try {
-        const modal = document.getElementById('task-modal');
-        if (modal) { modal.style.pointerEvents = ''; modal.style.opacity = ''; }
+        const oldDate = task.date;
         await updateDoc(doc(db, task.path), { date: newDateKey });
+        logAdmin('MOVEU ATIVIDADE', {
+            descricao: `Moveu "${task.title}" de ${fmtDate(oldDate)} para ${fmtDate(newDateKey)}`,
+            atividade: task.title,
+            de: oldDate,
+            para: newDateKey,
+            colaboradores: task.assignee || 'Sem responsável'
+        });
         showCustomAlert('Tarefa movida!', 'success');
+        resetDragState();
         closeModal();
     } catch(e) {
         console.error(e);
         showCustomAlert('Erro ao mover tarefa.');
-        const modal = document.getElementById('task-modal');
-        if (modal) { modal.style.pointerEvents = ''; modal.style.opacity = ''; }
+        resetDragState();
     }
-    state.calendarDragTaskId = null;
-    const dragHint = document.getElementById('drag-hint');
-    if (dragHint) dragHint.classList.add('hidden');
 }
 
 // --- SKELETON LOADING ---
@@ -293,6 +344,11 @@ function renderCalendar() {
         if (isToday) cellClass += ' is-today';
         else if (allCompleted) cellClass += ' all-done';
         else if (dayTasks.length > 0) cellClass += ' has-tasks';
+
+        // Heat map: completion ratio
+        const completedCount = dayTasks.filter(t => t.completed).length;
+        const totalCount = dayTasks.length;
+        const ratio = totalCount > 0 ? completedCount / totalCount : -1;
         cell.className = cellClass;
         cell.onclick = () => openModal(dateObj);
 
@@ -305,10 +361,19 @@ function renderCalendar() {
         const dayNum = `<span class="cal-day-number">${day}</span>`;
         const checkIcon = allCompleted ? '<i data-lucide="check" class="w-3 h-3 text-emerald-500 sm:w-3.5 sm:h-3.5" style="flex-shrink:0"></i>' : '';
 
+        // Task dot color logic
+        function getTaskDotColor(t) {
+            if (t.completed) return '#16a34a'; // verde
+            const hasAdminComment = Array.isArray(t.comments) && t.comments.some(c => c.matricula && String(c.matricula).includes('@'));
+            if (hasAdminComment) return '#f59e0b'; // amarelo — admin ciente
+            if (t.date < todayStr && (!t.photos || t.photos.length === 0)) return '#ef4444'; // vermelho
+            return '#f59e0b'; // amarelo — pendente normal
+        }
+
         // Desktop: task tag previews
         let desktopTags = '';
         dayTasks.slice(0, 2).forEach(t => {
-            const dotColor = t.completed ? 'background:#16a34a' : (t.date < todayStr && (!t.photos || t.photos.length === 0)) ? 'background:#ef4444' : 'background:#f59e0b';
+            const dotColor = 'background:' + getTaskDotColor(t);
             desktopTags += `<div class="cal-task-tag"><span class="cal-task-dot" style="${dotColor}"></span><span class="${t.completed ? 'line-through opacity-40' : ''}" style="overflow:hidden;text-overflow:ellipsis">${t.title}</span></div>`;
         });
         if(dayTasks.length > 2) desktopTags += `<span class="text-[9px] font-medium text-gray-400 pl-1">+${dayTasks.length - 2}</span>`;
@@ -317,16 +382,30 @@ function renderCalendar() {
         let mobileDots = '';
         if (dayTasks.length > 0) {
             mobileDots = dayTasks.slice(0, 4).map(t => {
-                const c = t.completed ? '#16a34a' : (t.date < todayStr && (!t.photos || t.photos.length === 0)) ? '#ef4444' : '#f59e0b';
-                return `<span class="cal-task-dot" style="background:${c}"></span>`;
+                return `<span class="cal-task-dot" style="background:${getTaskDotColor(t)}"></span>`;
             }).join('');
             if (dayTasks.length > 4) mobileDots += `<span style="font-size:7px;color:#9ca3af;font-weight:700">+${dayTasks.length - 4}</span>`;
+        }
+
+        // Heat map progress bar
+        let heatBar = '';
+        if (totalCount > 0) {
+            const pct = Math.round(ratio * 100);
+            const barColor = ratio === 1 ? '#22c55e' : ratio >= 0.5 ? '#f59e0b' : '#ef4444';
+            heatBar = `<div class="cal-heat-bar"><div class="cal-heat-fill" style="width:${pct}%;background:${barColor}"></div></div>`;
+        }
+
+        // Completion counter badge
+        let heatBadge = '';
+        if (totalCount > 0) {
+            heatBadge = `<span class="cal-heat-badge">${completedCount}/${totalCount}</span>`;
         }
 
         cell.innerHTML = `
             <div class="flex justify-between items-start">${dayNum}${checkIcon}</div>
             <div class="mt-auto flex flex-col gap-0.5">${desktopTags}</div>
-            <div class="cal-dots-row">${mobileDots}</div>`;
+            <div class="cal-dots-row">${mobileDots}</div>
+            ${heatBadge}${heatBar}`;
         grid.appendChild(cell);
     }
     lucide.createIcons();
@@ -378,7 +457,12 @@ function renderWeeklyView() {
         let tasksHTML = dayTasks.length === 0
             ? '<p class="weekly-no-tasks">\u2014</p>'
             : dayTasks.map(t => {
-                const dot = t.completed ? '#22c55e' : '#f59e0b';
+                let dot;
+                if (t.completed) { dot = '#22c55e'; }
+                else {
+                    const hasAdminComment = Array.isArray(t.comments) && t.comments.some(c => c.matricula && String(c.matricula).includes('@'));
+                    dot = (hasAdminComment || dateKey >= todayStr) ? '#f59e0b' : '#ef4444';
+                }
                 return `<div class="weekly-task${t.completed ? ' weekly-task-done' : ''}">
                     <span class="weekly-task-dot" style="background:${dot}"></span>
                     <span class="weekly-task-title">${t.title}</span>
@@ -638,6 +722,7 @@ function renderTaskList(dateKey) {
         item.id = `task-item-${task.id}`;
         item.draggable = true;
         item.ondragstart = (e) => {
+            isDragging = true;
             handleListDragStart(e, task.id);
             // Custom ghost element
             const ghost = document.createElement('div');
@@ -650,24 +735,17 @@ function renderTaskList(dateKey) {
                 state.calendarDragTaskId = task.id;
                 e.dataTransfer.setData('text/plain', task.id);
                 setTimeout(() => {
+                    if (!isDragging) return;
                     const taskModal = document.getElementById('task-modal');
-                    if (taskModal) { taskModal.style.pointerEvents = 'none'; taskModal.style.opacity = '0.15'; }
+                    if (taskModal) { taskModal.style.transition = 'opacity .2s ease'; taskModal.style.pointerEvents = 'none'; taskModal.style.opacity = '0.15'; }
                     const dragHint = document.getElementById('drag-hint');
                     if (dragHint) dragHint.classList.remove('hidden');
                 }, 200);
             }
         };
-        item.ondragend = (e) => {
-            e.target.classList.remove('dragging');
-            listDraggedId = null;
-            if (isAdmin) {
-                state.calendarDragTaskId = null;
-                const taskModal = document.getElementById('task-modal');
-                if (taskModal) { taskModal.style.pointerEvents = ''; taskModal.style.opacity = ''; }
-                document.querySelectorAll('.cal-drag-over').forEach(c => c.classList.remove('cal-drag-over'));
-                const dragHint = document.getElementById('drag-hint');
-                if (dragHint) dragHint.classList.add('hidden');
-            }
+        item.ondragend = () => {
+            // Always reset everything — whether dropped on valid target or not
+            resetDragState();
         };
         item.ondragover = (e) => handleListDragOver(e);
         item.ondrop = (e) => handleListDrop(e, task.id, dateKey);
@@ -742,14 +820,18 @@ window.addTask = async function(e) {
                 recurrence: 'none',
                 order: Date.now()
             });
+            logAdmin('CRIOU ATIVIDADE', {
+                descricao: `Criou "${titleVal}" para ${fmtDate(dateStr)}` + (assigneeNames ? ` atribuída a ${assigneeNames}` : ''),
+                atividade: titleVal, data: dateStr, colaboradores: assigneeNames || 'Nenhum'
+            });
 
             if (assigneeIds.length) {
                 const parts = dateStr.split('-');
                 const dateFmt = parts.length === 3 ? `${parts[2]}/${parts[1]}` : dateStr;
                 sendAssignmentPush({
                     assigneeIds,
-                    title: 'NOVA ESCALA!',
-                    body: `Atividade: ${titleVal}\nData: ${dateFmt}`,
+                    title: '📋 NOVA ESCALA!',
+                    body: `📌 ${titleVal}\n📅 Data: ${dateFmt}\n\nAcesse o Calendário DPA para detalhes.`,
                     taskPath: docRef.path,
                     taskId: docRef.id,
                     date: dateStr
@@ -810,8 +892,8 @@ window.addTask = async function(e) {
                 const dateFmt = parts.length === 3 ? `${parts[2]}/${parts[1]}` : baseDateStr;
                 sendAssignmentPush({
                     assigneeIds,
-                    title: 'NOVA ESCALA!',
-                    body: `Atividade: ${titleVal}\nData: ${dateFmt}`,
+                    title: '📋 NOVA ESCALA RECORRENTE!',
+                    body: `📌 ${titleVal}\n📅 A partir de: ${dateFmt}\n🔄 Atividade recorrente\n\nAcesse o Calendário DPA para detalhes.`,
                     taskPath: baseDocRef.path,
                     taskId: baseDocRef.id,
                     date: baseDateStr
@@ -862,10 +944,17 @@ window.toggleTask = async function(id) {
 
     try {
         const userName = state.user ? (state.user.name || state.user.nome) : 'Usuário';
-        await updateDoc(doc(db, task.path), { 
-            completed: !task.completed, 
-            completedBy: task.completed ? null : userName 
+        const newStatus = !task.completed;
+        await updateDoc(doc(db, task.path), {
+            completed: newStatus,
+            completedBy: task.completed ? null : userName
         });
+        if (state.user && state.user.role === 'admin') {
+            logAdmin(newStatus ? 'CONCLUIU ATIVIDADE' : 'REABRIU ATIVIDADE', {
+                descricao: `${newStatus ? 'Concluiu' : 'Reabriu'} "${task.title}" do dia ${fmtDate(task.date)}` + (task.assignee ? ` (responsável: ${task.assignee})` : ''),
+                atividade: task.title, data: task.date, colaboradores: task.assignee || 'Nenhum'
+            });
+        }
         if (!task.completed) confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#e41e26', '#ffffff'] });
     } catch (e) { console.error(e); }
 }
@@ -979,12 +1068,20 @@ window.confirmDelete = async function(deleteFuture = false) {
                 if (deleteFuture && groupId) {
                     const q = query(collectionGroup(db, "atividades"), where("groupId", "==", groupId), where("date", ">=", date));
                     const snapshot = await getDocs(q);
+                    const count = snapshot.docs.length;
                     const batchPromises = snapshot.docs.map(d => deleteDoc(d.ref));
                     await Promise.all(batchPromises);
-
+                    logAdmin('EXCLUIU ATIVIDADES RECORRENTES', {
+                        descricao: `Excluiu ${count} atividades recorrentes a partir de ${fmtDate(date)}`,
+                        quantidade: count, aPartirDe: date
+                    });
                 } else {
                     const task = state.tasks.find(t => t.id === id);
                     if(task) {
+                        logAdmin('EXCLUIU ATIVIDADE', {
+                            descricao: `Excluiu "${task.title}" do dia ${fmtDate(task.date)}` + (task.assignee ? ` (responsável: ${task.assignee})` : ''),
+                            atividade: task.title, data: task.date, colaboradores: task.assignee || 'Nenhum'
+                        });
                         const el = document.getElementById(`task-item-${id}`);
                         if(el) gsap.to(el, { x: 100, opacity: 0, duration: 0.3 });
                         await deleteDoc(doc(db, task.path));
@@ -992,10 +1089,19 @@ window.confirmDelete = async function(deleteFuture = false) {
                 }
             } else if (type === 'photo') {
                 const task = state.tasks.find(t => t.id === id);
+                logAdmin('EXCLUIU FOTO', {
+                    descricao: `Removeu foto da atividade "${task.title}" do dia ${fmtDate(task.date)}`,
+                    atividade: task.title, data: task.date
+                });
                 const newPhotos = [...task.photos]; newPhotos.splice(index, 1);
                 await updateDoc(doc(db, task.path), { photos: newPhotos });
             } else if (type === 'comment') {
                 const task = state.tasks.find(t => t.id === id);
+                const deletedComment = task.comments[index];
+                logAdmin('EXCLUIU COMENTARIO', {
+                    descricao: `Removeu comentário de ${deletedComment?.author || 'Desconhecido'} na atividade "${task.title}" do dia ${fmtDate(task.date)}: "${deletedComment?.text || ''}"`,
+                    atividade: task.title, data: task.date, comentario: deletedComment?.text || ''
+                });
                 const newComments = [...task.comments]; newComments.splice(index, 1);
                 await updateDoc(doc(db, task.path), { comments: newComments });
             }
@@ -1009,6 +1115,7 @@ window.confirmDelete = async function(deleteFuture = false) {
 let listDraggedId = null;
 window.handleListDragStart = function(e, id) { listDraggedId = id; e.target.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
 window.handleListDragOver = function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+
 window.handleListDrop = async function(e, targetId, dateKey) {
     e.preventDefault(); const draggedItem = document.getElementById(`task-item-${listDraggedId}`);
     if(draggedItem) draggedItem.classList.remove('dragging');
@@ -1151,6 +1258,395 @@ export function stopTaskSubscription() {
     unsubscribeTasks = null;
   }
 }
+
+// ── Stats Full Page ──
+let statsVisible = false;
+let statsDate = new Date();
+let compareDate = new Date();
+
+function initStatsDates() {
+    statsDate = new Date(state.date);
+    compareDate = new Date(state.date);
+    compareDate.setMonth(compareDate.getMonth() - 1);
+}
+
+window.toggleStatsView = function() {
+    const statsPage = document.getElementById('stats-page');
+    const calElements = document.querySelectorAll('#view-toggle-container, #filter-bar, #drag-hint, .cal-wrapper, .flex.items-center.justify-between.mb-3');
+    const navRow = document.querySelector('main > div.flex.items-center.justify-between');
+
+    if (!statsVisible) {
+        initStatsDates();
+        if (navRow) navRow.style.display = 'none';
+        calElements.forEach(el => el.style.display = 'none');
+        statsPage.classList.remove('hidden');
+        renderStats();
+        statsVisible = true;
+        document.getElementById('btn-stats').classList.add('bg-[#fef2f2]', 'text-[#e41e26]');
+    } else {
+        statsPage.classList.add('hidden');
+        if (navRow) navRow.style.display = '';
+        calElements.forEach(el => el.style.display = '');
+        statsVisible = false;
+        document.getElementById('btn-stats').classList.remove('bg-[#fef2f2]', 'text-[#e41e26]');
+    }
+    lucide.createIcons();
+};
+
+window.changeStatsMonth = function(dir) {
+    statsDate.setMonth(statsDate.getMonth() + dir);
+    renderStats();
+};
+
+window.changeCompareMonth = function(dir) {
+    compareDate.setMonth(compareDate.getMonth() + dir);
+    renderStats();
+};
+
+function formatMonthLabel(d) {
+    const name = d.toLocaleDateString('pt-BR', { month: 'long' });
+    return (name.charAt(0).toUpperCase() + name.slice(1)) + ' ' + d.getFullYear();
+}
+
+function getTasksForDate(d) {
+    const y = d.getFullYear(), m = d.getMonth();
+    return state.tasks.filter(t => {
+        if (!t.date) return false;
+        const td = new Date(t.date + 'T00:00:00');
+        return td.getFullYear() === y && td.getMonth() === m;
+    });
+}
+
+function getMonthTasks(monthOffset) {
+    const d = new Date(statsDate);
+    d.setMonth(d.getMonth() + monthOffset);
+    return getTasksForDate(d);
+}
+
+function renderStats() {
+    const year = statsDate.getFullYear();
+    const month = statsDate.getMonth();
+
+    // Update month labels
+    document.getElementById('stats-month-text').textContent = formatMonthLabel(statsDate);
+    document.getElementById('stats-compare-month-text').textContent = formatMonthLabel(compareDate);
+
+    const tasks = getTasksForDate(statsDate);
+    const prevTasks = getTasksForDate(compareDate);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.completed).length;
+    const pending = total - completed;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const photoCount = tasks.reduce((s, t) => s + (Array.isArray(t.photos) ? t.photos.length : 0), 0);
+
+    document.getElementById('stats-total').textContent = total;
+    document.getElementById('stats-completed').textContent = completed;
+    document.getElementById('stats-pending').textContent = pending;
+    document.getElementById('stats-photos').textContent = photoCount;
+    document.getElementById('stats-pct').textContent = pct + '%';
+
+    // Ring
+    const ring = document.getElementById('stats-ring');
+    const offset = 326.7 - (pct / 100) * 326.7;
+    ring.style.stroke = pct >= 80 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444';
+    ring.style.strokeDashoffset = '326.7';
+    setTimeout(() => { ring.style.strokeDashoffset = offset; }, 150);
+
+    // 7. Comparativo mês anterior
+    const prevTotal = prevTasks.length;
+    const prevCompleted = prevTasks.filter(t => t.completed).length;
+    const prevPct = prevTotal > 0 ? Math.round((prevCompleted / prevTotal) * 100) : 0;
+    const diff = pct - prevPct;
+    const cmpIcon = document.getElementById('stats-compare-icon');
+    const cmpText = document.getElementById('stats-compare-text');
+    const cmpName = formatMonthLabel(compareDate);
+    if (prevTotal === 0) {
+        cmpText.textContent = `Sem dados em ${cmpName}`;
+        cmpIcon.innerHTML = '<i data-lucide="minus" class="w-3 h-3"></i>';
+        cmpIcon.className = 'w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-white/30';
+    } else if (diff > 0) {
+        cmpText.textContent = `+${diff}% melhor que ${cmpName} (${prevPct}%)`;
+        cmpIcon.innerHTML = '<i data-lucide="trending-up" class="w-3 h-3"></i>';
+        cmpIcon.className = 'w-5 h-5 rounded-full bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e]';
+    } else if (diff < 0) {
+        cmpText.textContent = `${diff}% abaixo de ${cmpName} (${prevPct}%)`;
+        cmpIcon.innerHTML = '<i data-lucide="trending-down" class="w-3 h-3"></i>';
+        cmpIcon.className = 'w-5 h-5 rounded-full bg-[#ef4444]/20 flex items-center justify-center text-[#ef4444]';
+    } else {
+        cmpText.textContent = `Igual a ${cmpName} (${prevPct}%)`;
+        cmpIcon.innerHTML = '<i data-lucide="minus" class="w-3 h-3"></i>';
+        cmpIcon.className = 'w-5 h-5 rounded-full bg-[#f59e0b]/20 flex items-center justify-center text-[#f59e0b]';
+    }
+
+    // 3. Evolução semanal
+    const weeksContainer = document.getElementById('stats-weekly-bars');
+    const weeks = [[], [], [], [], []];
+    tasks.forEach(t => {
+        const d = new Date(t.date + 'T00:00:00').getDate();
+        const wi = Math.min(Math.floor((d - 1) / 7), 4);
+        weeks[wi].push(t);
+    });
+    weeksContainer.innerHTML = '';
+    const maxWeekTasks = Math.max(...weeks.map(w => w.length), 1);
+    weeks.forEach((w, i) => {
+        if (w.length === 0 && i > 3) return;
+        const done = w.filter(t => t.completed).length;
+        const wpct = w.length > 0 ? Math.round((done / w.length) * 100) : 0;
+        const hPct = w.length > 0 ? Math.max((w.length / maxWeekTasks) * 100, 12) : 8;
+        const color = wpct >= 80 ? '#22c55e' : wpct >= 40 ? '#f59e0b' : '#ef4444';
+        weeksContainer.innerHTML += `<div class="flex-1 flex flex-col items-center gap-1">
+            <div class="w-full rounded-[6px] relative overflow-hidden" style="height:${hPct}%;min-height:12px;background:#f3f4f6">
+                <div class="absolute bottom-0 left-0 right-0 rounded-[6px] transition-all duration-700" style="height:${wpct}%;background:${color}"></div>
+            </div>
+            <span class="text-[8px] font-black text-[#9ca3af]">S${i + 1}</span>
+            <span class="text-[7px] font-bold" style="color:${color}">${wpct}%</span>
+        </div>`;
+    });
+
+    // 1. Ranking de colaboradores
+    const rankContainer = document.getElementById('stats-ranking');
+    const collabStats = {};
+    tasks.forEach(t => {
+        if (!t.assignee) return;
+        t.assignee.split(',').map(n => n.trim()).filter(Boolean).forEach(name => {
+            if (!collabStats[name]) collabStats[name] = { total: 0, done: 0, photos: 0 };
+            collabStats[name].total++;
+            if (t.completed) collabStats[name].done++;
+            if (Array.isArray(t.photos)) collabStats[name].photos += t.photos.length;
+        });
+    });
+    const ranked = Object.entries(collabStats).sort((a, b) => b[1].done - a[1].done);
+    rankContainer.innerHTML = ranked.length === 0 ? '<p class="text-[11px] text-[#9ca3af]">Nenhum colaborador no mês</p>' : '';
+    ranked.forEach(([name, s], i) => {
+        const rpct = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+        const barColor = rpct >= 80 ? '#22c55e' : rpct >= 40 ? '#f59e0b' : '#ef4444';
+        const medal = i === 0 ? ' ring-2 ring-[#fbbf24]/30' : '';
+        rankContainer.innerHTML += `<div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-full bg-[#151515] text-white flex items-center justify-center text-[9px] font-black flex-shrink-0${medal}">${name.charAt(0)}</div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-0.5"><span class="text-[11px] font-extrabold text-[#151515] truncate">${name}</span><span class="text-[9px] font-black" style="color:${barColor}">${s.done}/${s.total}</span></div>
+                <div class="h-1.5 bg-[#f3f4f6] rounded-full overflow-hidden"><div class="h-full rounded-full transition-all duration-500" style="width:${rpct}%;background:${barColor}"></div></div>
+            </div>
+        </div>`;
+    });
+
+    // 2. Taxa de fotos
+    const tasksWithPhoto = tasks.filter(t => Array.isArray(t.photos) && t.photos.length > 0).length;
+    const taskPhotoTotal = tasks.filter(t => t.completed).length || 1;
+    const photoPct = Math.round((tasksWithPhoto / taskPhotoTotal) * 100);
+    document.getElementById('stats-photo-bar').style.width = photoPct + '%';
+    document.getElementById('stats-photo-pct').textContent = photoPct + '%';
+    document.getElementById('stats-photo-with').textContent = tasksWithPhoto + ' com foto';
+    document.getElementById('stats-photo-without').textContent = (taskPhotoTotal - tasksWithPhoto) + ' sem foto';
+
+    // 9. Colaborador com mais fotos
+    const photoRank = Object.entries(collabStats).sort((a, b) => b[1].photos - a[1].photos);
+    if (photoRank.length > 0 && photoRank[0][1].photos > 0) {
+        document.getElementById('stats-photo-top-initial').textContent = photoRank[0][0].charAt(0);
+        document.getElementById('stats-photo-top-name').textContent = photoRank[0][0];
+        document.getElementById('stats-photo-top-count').textContent = photoRank[0][1].photos + ' foto' + (photoRank[0][1].photos !== 1 ? 's' : '') + ' enviada' + (photoRank[0][1].photos !== 1 ? 's' : '');
+    }
+
+    // Destaque + Dia crítico
+    if (ranked.length > 0) {
+        document.getElementById('stats-top-initial').textContent = ranked[0][0].charAt(0);
+        document.getElementById('stats-top-name').textContent = ranked[0][0];
+        document.getElementById('stats-top-count').textContent = ranked[0][1].done + ' concluídas';
+    }
+    const dayPending = {};
+    tasks.filter(t => !t.completed).forEach(t => { dayPending[t.date] = (dayPending[t.date] || 0) + 1; });
+    const worstDay = Object.entries(dayPending).sort((a, b) => b[1] - a[1]);
+    if (worstDay.length > 0) {
+        const p = worstDay[0][0].split('-');
+        document.getElementById('stats-worst-day').textContent = p[2];
+        document.getElementById('stats-worst-label').textContent = p[2] + '/' + p[1];
+        document.getElementById('stats-worst-count').textContent = worstDay[0][1] + ' pendentes';
+    }
+
+    // 6. Resumo por dia da semana
+    const wdGrid = document.getElementById('stats-weekday-grid');
+    const wdNames = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
+    const wdStats = Array(7).fill(null).map(() => ({ total: 0, done: 0 }));
+    tasks.forEach(t => {
+        const wd = new Date(t.date + 'T00:00:00').getDay();
+        wdStats[wd].total++;
+        if (t.completed) wdStats[wd].done++;
+    });
+    wdGrid.innerHTML = wdStats.map((s, i) => {
+        const wpct = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+        const color = s.total === 0 ? '#e5e7eb' : wpct >= 80 ? '#dcfce7' : wpct >= 40 ? '#fef3c7' : '#fecaca';
+        const textColor = s.total === 0 ? '#cbd5e1' : wpct >= 80 ? '#16a34a' : wpct >= 40 ? '#ca8a04' : '#ef4444';
+        return `<div class="text-center rounded-[8px] py-2" style="background:${color}">
+            <span class="text-[8px] font-bold block" style="color:${textColor}">${wdNames[i]}</span>
+            <span class="text-[11px] font-black block leading-none mt-0.5" style="color:${textColor}">${wpct}%</span>
+            <span class="text-[7px] font-bold block mt-0.5" style="color:${textColor};opacity:.5">${s.done}/${s.total}</span>
+        </div>`;
+    }).join('');
+
+    // 5. Tarefas atrasadas
+    const overdueContainer = document.getElementById('stats-overdue');
+    const overdue = tasks.filter(t => !t.completed && t.date < todayStr);
+    overdueContainer.innerHTML = overdue.length === 0
+        ? '<p class="text-[11px] text-[#22c55e] font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#22c55e]"></span> Nenhuma tarefa atrasada!</p>'
+        : overdue.slice(0, 10).map(t => {
+            const p = (t.date || '').split('-');
+            const df = p.length === 3 ? p[2] + '/' + p[1] : t.date;
+            return `<div class="flex items-center gap-2 py-1.5 px-2 rounded-[8px] bg-[#fef2f2]">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#ef4444] flex-shrink-0"></span>
+                <span class="text-[10px] font-extrabold text-[#151515] flex-1 truncate">${t.title}</span>
+                <span class="text-[9px] font-bold text-[#ef4444]">${df}</span>
+                <span class="text-[8px] font-bold text-[#9ca3af] truncate max-w-[80px]">${t.assignee || 'Sem resp.'}</span>
+            </div>`;
+        }).join('') + (overdue.length > 10 ? `<p class="text-[9px] text-[#9ca3af] font-bold mt-1">+${overdue.length - 10} mais</p>` : '');
+
+    // 4. Colaboradores sem atividade concluída
+    const inactiveContainer = document.getElementById('stats-inactive');
+    const allCollabs = [...new Set(tasks.filter(t => t.assignee).flatMap(t => t.assignee.split(',').map(n => n.trim()).filter(Boolean)))];
+    const inactive = allCollabs.filter(name => {
+        const s = collabStats[name];
+        return !s || s.done === 0;
+    });
+    inactiveContainer.innerHTML = inactive.length === 0
+        ? '<p class="text-[11px] text-[#22c55e] font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#22c55e]"></span> Todos contribuíram!</p>'
+        : inactive.map(name => `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#fefce8] border border-[#fef08a] text-[9px] font-bold text-[#ca8a04]"><span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>${name}</span>`).join('');
+
+    // 10. Alertas automáticos
+    const alertsList = document.getElementById('stats-alerts-list');
+    const alerts = [];
+    const todayTasks = tasks.filter(t => t.date === todayStr);
+    const todayNoResp = todayTasks.filter(t => !t.assignee || t.assignee.trim() === '');
+    if (todayNoResp.length > 0) alerts.push({ type: 'warn', text: `${todayNoResp.length} tarefa${todayNoResp.length > 1 ? 's' : ''} de hoje sem responsável` });
+    if (overdue.length > 0) alerts.push({ type: 'error', text: `${overdue.length} tarefa${overdue.length > 1 ? 's' : ''} atrasada${overdue.length > 1 ? 's' : ''}` });
+    if (pct < 30 && total > 5) alerts.push({ type: 'error', text: `Mês com apenas ${pct}% de conclusão` });
+    inactive.forEach(name => { alerts.push({ type: 'warn', text: `${name} não concluiu nenhuma tarefa` }); });
+    const noPhotoOverdue = tasks.filter(t => t.completed && (!t.photos || t.photos.length === 0) && t.date < todayStr);
+    if (noPhotoOverdue.length > 0) alerts.push({ type: 'warn', text: `${noPhotoOverdue.length} tarefa${noPhotoOverdue.length > 1 ? 's' : ''} concluída${noPhotoOverdue.length > 1 ? 's' : ''} sem foto` });
+    if (alerts.length === 0) alerts.push({ type: 'ok', text: 'Nenhum alerta no momento. Tudo em dia!' });
+
+    alertsList.innerHTML = alerts.map(a => {
+        const bg = a.type === 'error' ? 'rgba(239,68,68,.12)' : a.type === 'warn' ? 'rgba(245,158,11,.1)' : 'rgba(34,197,94,.1)';
+        const textColor = a.type === 'error' ? '#fca5a5' : a.type === 'warn' ? '#fde68a' : '#86efac';
+        const dot = a.type === 'error' ? '#ef4444' : a.type === 'warn' ? '#f59e0b' : '#22c55e';
+        return `<div class="flex items-center gap-2.5 py-2 px-3 rounded-[8px]" style="background:${bg}">
+            <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:${dot}"></span>
+            <span class="text-[10px] font-bold" style="color:${textColor}">${a.text}</span>
+        </div>`;
+    }).join('');
+
+    // Load admin logs
+    loadAdminLogs();
+
+    lucide.createIcons();
+}
+
+let logsLimit = 30;
+async function loadAdminLogs() {
+    const container = document.getElementById('stats-logs');
+    const emptyMsg = document.getElementById('stats-logs-empty');
+    if (!container) return;
+
+    try {
+        const q = query(collection(db, 'admin_logs'), orderBy('timestamp', 'desc'));
+        const snapshot = await getDocs(q);
+        let logs = snapshot.docs.map(d => d.data());
+
+        // Apply filter
+        if (currentLogFilter !== 'all') {
+            logs = logs.filter(l => (l.action || '').includes(currentLogFilter));
+        }
+        logs = logs.slice(0, logsLimit);
+
+        if (logs.length === 0) {
+            container.innerHTML = '';
+            emptyMsg.classList.remove('hidden');
+            return;
+        }
+        emptyMsg.classList.add('hidden');
+
+        const actionColors = {
+            'CRIOU ATIVIDADE': { bg: '#f0fdf4', text: '#16a34a', dot: '#22c55e', icon: '+' },
+            'EXCLUIU ATIVIDADE': { bg: '#fef2f2', text: '#ef4444', dot: '#ef4444', icon: '×' },
+            'EXCLUIU ATIVIDADES RECORRENTES': { bg: '#fef2f2', text: '#ef4444', dot: '#ef4444', icon: '×' },
+            'MOVEU ATIVIDADE': { bg: '#eff6ff', text: '#2563eb', dot: '#3b82f6', icon: '→' },
+            'EDITOU ATIVIDADE': { bg: '#fefce8', text: '#ca8a04', dot: '#f59e0b', icon: '✎' },
+            'CONCLUIU ATIVIDADE': { bg: '#f0fdf4', text: '#16a34a', dot: '#22c55e', icon: '✓' },
+            'REABRIU ATIVIDADE': { bg: '#fefce8', text: '#ca8a04', dot: '#f59e0b', icon: '↺' },
+            'EXCLUIU FOTO': { bg: '#fdf4ff', text: '#a855f7', dot: '#a855f7', icon: '×' },
+            'EXCLUIU COMENTARIO': { bg: '#fdf4ff', text: '#a855f7', dot: '#a855f7', icon: '×' },
+        };
+
+        // Group by date
+        let lastDateStr = '';
+        container.innerHTML = logs.map(log => {
+            const colors = actionColors[log.action] || { bg: '#f9fafb', text: '#6b7280', dot: '#9ca3af', icon: '•' };
+            const ts = log.timestamp ? new Date(log.timestamp) : null;
+            const dateStr = ts ? `${String(ts.getDate()).padStart(2,'0')}/${String(ts.getMonth()+1).padStart(2,'0')}/${ts.getFullYear()}` : '';
+            const timeStr = ts ? `${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}` : '';
+
+            let dateSeparator = '';
+            if (dateStr && dateStr !== lastDateStr) {
+                lastDateStr = dateStr;
+                dateSeparator = `<div class="flex items-center gap-2 py-3 pl-1">
+                    <div class="w-[22px] h-[22px] rounded-full bg-[#151515] text-white flex items-center justify-center text-[7px] font-black z-10">${ts ? String(ts.getDate()).padStart(2,'0') : ''}</div>
+                    <span class="text-[9px] font-bold text-[#151515] uppercase tracking-wider">${dateStr}</span>
+                    <div class="flex-1 h-px bg-[#e5e7eb]"></div>
+                </div>`;
+            }
+
+            return `${dateSeparator}<div class="flex items-start gap-3 pl-1 py-2.5 ml-[10px] border-l border-transparent hover:bg-[#fafafa] rounded-r-[8px] px-3 transition-colors">
+                <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 z-10 -ml-[14px]" style="background:${colors.bg};color:${colors.text};border:2px solid white">${colors.icon}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                        <span class="text-[7px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style="background:${colors.bg};color:${colors.text}">${log.action}</span>
+                        <span class="text-[8px] font-bold text-[#cbd5e1]">${timeStr}</span>
+                    </div>
+                    <p class="text-[11px] font-semibold text-[#374151] leading-relaxed">${log.descricao || ''}</p>
+                    ${log.colaboradores ? `<p class="text-[9px] font-bold text-[#94a3b8] mt-0.5">Colaboradores: ${log.colaboradores}</p>` : ''}
+                    <p class="text-[8px] font-bold text-[#cbd5e1] mt-1">por ${log.admin || 'Admin'}</p>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        console.warn('Failed to load logs:', e);
+        container.innerHTML = '<p class="text-[11px] text-[#9ca3af] text-center py-4">Erro ao carregar histórico</p>';
+    }
+}
+
+window.loadMoreLogs = function() {
+    logsLimit += 20;
+    loadAdminLogs();
+};
+
+// ── Stats Tab Navigation ──
+window.switchStatsTab = function(tab) {
+    const resumo = document.getElementById('stats-tab-resumo');
+    const historico = document.getElementById('stats-tab-historico');
+    const btnResumo = document.getElementById('stats-tab-btn-resumo');
+    const btnHistorico = document.getElementById('stats-tab-btn-historico');
+
+    if (tab === 'resumo') {
+        resumo.classList.remove('hidden');
+        historico.classList.add('hidden');
+        btnResumo.classList.add('active');
+        btnHistorico.classList.remove('active');
+    } else {
+        resumo.classList.add('hidden');
+        historico.classList.remove('hidden');
+        btnResumo.classList.remove('active');
+        btnHistorico.classList.add('active');
+        loadAdminLogs();
+    }
+};
+
+let currentLogFilter = 'all';
+window.filterLogs = function(filter) {
+    currentLogFilter = filter;
+    document.querySelectorAll('.log-filter-pill').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.log-filter-pill[data-filter="${filter}"]`).classList.add('active');
+    loadAdminLogs();
+};
 
 export { subscribeToTasks, renderCalendar, playIntro, animatePageTransition, renderTaskList };
 

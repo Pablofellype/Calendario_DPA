@@ -32,10 +32,21 @@ self.addEventListener('push', (event) => {
   const body = (payload && (payload.body || payload.notification?.body)) || '';
   const data = (payload && payload.data) ? payload.data : {};
 
+  // Format body: replace \n with line breaks
+  const formattedBody = String(body || '').replace(/\\n/g, '\n');
+
   const options = {
-    body,
+    body: formattedBody,
     icon: 'https://i.postimg.cc/c4LqxjXc/capa-calendario-nova.png',
     badge: 'https://i.postimg.cc/c4LqxjXc/capa-calendario-nova.png',
+    vibrate: [100, 50, 100, 50, 200],
+    tag: data.taskId || 'calendario-dpa',
+    renotify: true,
+    requireInteraction: true,
+    actions: [
+      { action: 'open', title: 'Abrir' },
+      { action: 'dismiss', title: 'Dispensar' }
+    ],
     data
   };
 
@@ -44,6 +55,9 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  // If user clicked "Dispensar", just close
+  if (event.action === 'dismiss') return;
 
   event.waitUntil((async () => {
     const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });

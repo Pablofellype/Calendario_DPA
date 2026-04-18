@@ -6,6 +6,7 @@ import {
   getDoc,
   doc,
   setDoc,
+  addDoc,
   deleteDoc,
   updateDoc,
   deleteField,
@@ -17,6 +18,17 @@ import { getTaskEditPermission, taskEditDenyMessage } from './permissions.js';
 import { renderTaskList } from './tasks.js';
 import { sendAssignmentPush } from './push.js';
 const lucide = window.lucide;
+
+function fmtDate(d) { const p = (d || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d; }
+async function logAdmin(action, details) {
+    if (!state.user || state.user.role !== 'admin') return;
+    try {
+        await addDoc(collection(db, 'admin_logs'), {
+            action, admin: state.user.name || state.user.nome || state.user.id || 'Admin',
+            timestamp: new Date().toISOString(), ...details
+        });
+    } catch (e) { console.warn('Log failed:', e); }
+}
 
 // --- GESTÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢O DE EQUIPE ---
 export async function fetchColaborators() {
@@ -470,19 +482,42 @@ window.saveEdit = async function(taskId) {
     const newlyAdded = newAssigneeIds.filter((id) => id && !oldIds.includes(id));
 
     try {
+        const oldTitle = task.title;
+        const oldAssignees = task.assignee || '';
+
         await updateDoc(doc(db, task.path), {
             title: newTitle,
             assignee: newAssignees,
             assigneeIds: newAssigneeIds
         });
 
+        // Log detalhado
+        let logParts = [];
+        if (oldTitle !== newTitle) logParts.push(`Renomeou de "${oldTitle}" para "${newTitle}"`);
+        if (oldAssignees !== newAssignees) {
+            const oldNames = oldAssignees.split(',').map(n => n.trim()).filter(Boolean);
+            const newNames = newAssignees.split(',').map(n => n.trim()).filter(Boolean);
+            const added = newNames.filter(n => !oldNames.includes(n));
+            const removed = oldNames.filter(n => !newNames.includes(n));
+            if (added.length) logParts.push(`Adicionou ${added.join(', ')} à atividade "${newTitle}" do dia ${fmtDate(task.date)}` + (oldNames.length ? ` (já tinha: ${oldNames.join(', ')})` : ''));
+            if (removed.length) logParts.push(`Removeu ${removed.join(', ')} da atividade "${newTitle}" do dia ${fmtDate(task.date)}`);
+        }
+        if (logParts.length > 0) {
+            logAdmin('EDITOU ATIVIDADE', {
+                descricao: logParts.join('. '),
+                atividade: newTitle, data: task.date,
+                colaboradoresAntigos: oldAssignees || 'Nenhum',
+                colaboradoresNovos: newAssignees || 'Nenhum'
+            });
+        }
+
         if (newlyAdded.length) {
             const parts = String(task.date || '').split('-');
             const dateFmt = parts.length === 3 ? `${parts[2]}/${parts[1]}` : String(task.date || '');
             sendAssignmentPush({
                 assigneeIds: newlyAdded,
-                title: 'ATUALIZACAO DE ESCALA',
-                body: `Verifique sua atividade: ${newTitle}\nData: ${dateFmt}`,
+                title: '🔔 ATUALIZAÇÃO DE ESCALA',
+                body: `📌 ${newTitle}\n📅 Data: ${dateFmt}\n👤 Você foi adicionado a esta atividade.\n\nAcesse o Calendário DPA para detalhes.`,
                 taskPath: task.path,
                 taskId: taskId,
                 date: String(task.date || '')

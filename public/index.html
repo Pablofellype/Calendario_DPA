@@ -159,6 +159,9 @@
                     <button id="btn-notifications" onclick="enableNotifications()" class="group w-9 h-9 rounded-[10px] flex items-center justify-center text-amber-500 hover:bg-amber-50 transition-all" title="Ativar notificações">
                         <i data-lucide="bell-off" class="w-4 h-4"></i>
                     </button>
+                    <button id="btn-stats" onclick="toggleStatsView()" class="hidden group w-9 h-9 rounded-[10px] flex items-center justify-center text-[#e41e26] bg-[#fef2f2] hover:bg-[#e41e26] hover:text-white transition-all" title="Estatísticas do Mês">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    </button>
                     <button id="btn-report" onclick="generatePDFReport()" class="hidden group w-9 h-9 rounded-[10px] bg-[#151515] flex items-center justify-center text-white hover:bg-[#e41e26] transition-all" title="Baixar Relatório">
                         <i data-lucide="file-text" class="w-4 h-4"></i>
                     </button>
@@ -213,7 +216,7 @@
             </div>
 
             <!-- VIEW TOGGLE -->
-            <div id="view-toggle-container" class="flex justify-center mb-3 app-content opacity-0 translate-y-4">
+            <div id="view-toggle-container" class="flex justify-center items-center gap-2 mb-3 app-content opacity-0 translate-y-4">
                 <div class="flex rounded-lg border border-[#e5e7eb] overflow-hidden bg-[#fafafa] p-0.5">
                     <button onclick="setCalendarView('month')" id="view-month" class="view-toggle-btn active">Mensal</button>
                     <button onclick="setCalendarView('week')" id="view-week" class="view-toggle-btn">Semanal</button>
@@ -239,6 +242,207 @@
                 <div id="calendar-grid" class="grid grid-cols-7 gap-[2px] sm:gap-[4px] lg:gap-1.5"></div>
                 <div id="weekly-grid" class="hidden"></div>
             </div>
+            <!-- STATS PAGE -->
+            <div id="stats-page" class="hidden">
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <p class="text-[9px] font-bold text-[#e41e26] uppercase tracking-[0.25em] flex items-center gap-1.5 mb-1">
+                            <span class="w-[16px] h-[2.5px] rounded-full bg-[#e41e26]"></span> Painel Administrativo
+                        </p>
+                        <h2 class="display-heading text-2xl sm:text-3xl text-[#151515]" style="line-height:.95">Estatísticas</h2>
+                    </div>
+                    <button onclick="toggleStatsView()" class="flex items-center gap-2 px-3.5 py-2 rounded-[10px] border border-[#e5e7eb] bg-white text-[#6b7280] hover:text-[#e41e26] hover:border-[#e41e26] transition-all shadow-sm text-[10px] font-bold uppercase tracking-wider" title="Voltar ao Calendário">
+                        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Calendário
+                    </button>
+                </div>
+
+                <!-- Month selector + Compare -->
+                <div class="bg-white rounded-[14px] border border-[#e5e7eb] p-3 sm:p-4 mb-4 flex flex-col sm:flex-row gap-3" style="box-shadow:0 2px 8px rgba(15,23,42,.04)">
+                    <!-- Mês principal -->
+                    <div class="flex-1">
+                        <label class="text-[8px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-1.5 block">Mês de Análise</label>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="changeStatsMonth(-1)" class="w-8 h-8 rounded-[8px] border border-[#e5e7eb] bg-[#fafafa] flex items-center justify-center text-[#6b7280] hover:text-[#e41e26] hover:border-[#e41e26] transition-all">
+                                <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <div class="flex-1 text-center">
+                                <span id="stats-month-text" class="text-[13px] font-extrabold text-[#151515]">Abril 2026</span>
+                            </div>
+                            <button onclick="changeStatsMonth(1)" class="w-8 h-8 rounded-[8px] border border-[#e5e7eb] bg-[#fafafa] flex items-center justify-center text-[#6b7280] hover:text-[#e41e26] hover:border-[#e41e26] transition-all">
+                                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Separador -->
+                    <div class="hidden sm:block w-px bg-[#e5e7eb]"></div>
+                    <div class="block sm:hidden h-px bg-[#e5e7eb]"></div>
+                    <!-- Mês de comparação -->
+                    <div class="flex-1">
+                        <label class="text-[8px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-1.5 block">Comparar com</label>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="changeCompareMonth(-1)" class="w-8 h-8 rounded-[8px] border border-[#e5e7eb] bg-[#fafafa] flex items-center justify-center text-[#6b7280] hover:text-[#e41e26] hover:border-[#e41e26] transition-all">
+                                <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <div class="flex-1 text-center">
+                                <span id="stats-compare-month-text" class="text-[13px] font-extrabold text-[#151515]">Março 2026</span>
+                            </div>
+                            <button onclick="changeCompareMonth(1)" class="w-8 h-8 rounded-[8px] border border-[#e5e7eb] bg-[#fafafa] flex items-center justify-center text-[#6b7280] hover:text-[#e41e26] hover:border-[#e41e26] transition-all">
+                                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Navigation -->
+                <div class="flex rounded-lg border border-[#e5e7eb] overflow-hidden bg-[#fafafa] p-0.5 mb-4">
+                    <button onclick="switchStatsTab('resumo')" id="stats-tab-btn-resumo" class="view-toggle-btn active flex-1">Resumo</button>
+                    <button onclick="switchStatsTab('historico')" id="stats-tab-btn-historico" class="view-toggle-btn flex-1">Histórico</button>
+                </div>
+
+                <!-- TAB: Resumo -->
+                <div id="stats-tab-resumo">
+
+                <!-- Progress Ring + Main Stats -->
+                <div class="bg-[#151515] rounded-[16px] p-5 sm:p-6 mb-4 relative overflow-hidden">
+                    <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(circle at 80% 130%,rgba(228,30,38,.1),transparent 55%),radial-gradient(circle at 10% 0%,rgba(255,255,255,.02),transparent 40%)"></div>
+                    <div class="flex items-center gap-5 sm:gap-6 relative z-10">
+                        <div class="relative w-[88px] h-[88px] sm:w-24 sm:h-24 flex-shrink-0">
+                            <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90">
+                                <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="6"/>
+                                <circle id="stats-ring" cx="60" cy="60" r="52" fill="none" stroke="#22c55e" stroke-width="6" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset 1.2s cubic-bezier(.22,.78,.24,1);filter:drop-shadow(0 0 8px rgba(34,197,94,.25))"/>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="stats-pct" class="text-2xl sm:text-3xl font-display font-black text-white leading-none">0%</span>
+                                <span class="text-[6px] font-bold text-white/20 uppercase tracking-[0.15em] mt-0.5">Concluído</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-6 gap-y-3 flex-1">
+                            <div><span id="stats-completed" class="text-xl sm:text-2xl font-black text-[#22c55e] leading-none block">0</span><p class="text-[7px] font-bold text-white/20 uppercase tracking-[0.12em] mt-0.5">Concluídas</p></div>
+                            <div><span id="stats-pending" class="text-xl sm:text-2xl font-black text-[#ef4444] leading-none block">0</span><p class="text-[7px] font-bold text-white/20 uppercase tracking-[0.12em] mt-0.5">Pendentes</p></div>
+                            <div><span id="stats-photos" class="text-xl sm:text-2xl font-black text-[#f59e0b] leading-none block">0</span><p class="text-[7px] font-bold text-white/20 uppercase tracking-[0.12em] mt-0.5">Fotos</p></div>
+                            <div><span id="stats-total" class="text-xl sm:text-2xl font-black text-white leading-none block">0</span><p class="text-[7px] font-bold text-white/20 uppercase tracking-[0.12em] mt-0.5">Total</p></div>
+                        </div>
+                    </div>
+                    <div id="stats-compare" class="mt-4 pt-3 flex items-center gap-2 relative z-10" style="border-top:1px solid rgba(255,255,255,.06)">
+                        <span id="stats-compare-icon" class="w-5 h-5 rounded-full bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e]"><i data-lucide="trending-up" class="w-3 h-3"></i></span>
+                        <p id="stats-compare-text" class="text-[10px] font-bold text-white/35">Comparando com mês anterior</p>
+                    </div>
+                </div>
+
+                <!-- Two columns: Evolução + Dia da Semana -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    <!-- Evolução Semanal -->
+                    <div class="bg-white rounded-[14px] border border-[#e5e7eb] p-4" style="box-shadow:0 2px 8px rgba(15,23,42,.04)">
+                        <p class="text-[8px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span style="width:12px;height:2px;background:#e41e26;border-radius:2px;display:inline-block"></span> Evolução Semanal</p>
+                        <div id="stats-weekly-bars" class="flex items-end gap-2 h-28"></div>
+                    </div>
+                    <!-- Dia da Semana -->
+                    <div class="bg-white rounded-[14px] border border-[#e5e7eb] p-4" style="box-shadow:0 2px 8px rgba(15,23,42,.04)">
+                        <p class="text-[8px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span style="width:12px;height:2px;background:#e41e26;border-radius:2px;display:inline-block"></span> Resumo por Dia da Semana</p>
+                        <div id="stats-weekday-grid" class="grid grid-cols-7 gap-1.5"></div>
+                    </div>
+                </div>
+
+                <!-- Ranking -->
+                <div class="bg-white rounded-[14px] border border-[#e5e7eb] p-4 sm:p-5 mb-4" style="box-shadow:0 2px 8px rgba(15,23,42,.04)">
+                    <p class="text-[8px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-4 flex items-center gap-1.5"><span style="width:12px;height:2px;background:#e41e26;border-radius:2px;display:inline-block"></span> Ranking de Colaboradores</p>
+                    <div id="stats-ranking" class="flex flex-col gap-2.5"></div>
+                </div>
+
+                <!-- Taxa de Fotos -->
+                <div class="bg-white rounded-[14px] border border-[#e5e7eb] p-4 sm:p-5 mb-4" style="box-shadow:0 2px 8px rgba(15,23,42,.04)">
+                    <p class="text-[8px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span style="width:12px;height:2px;background:#f59e0b;border-radius:2px;display:inline-block"></span> Taxa de Fotos Enviadas</p>
+                    <div class="flex items-center gap-4">
+                        <div class="flex-1 h-3 bg-[#f3f4f6] rounded-full overflow-hidden">
+                            <div id="stats-photo-bar" class="h-full bg-gradient-to-r from-[#f59e0b] to-[#fbbf24] rounded-full transition-all duration-700" style="width:0%"></div>
+                        </div>
+                        <span id="stats-photo-pct" class="text-sm font-black text-[#ca8a04]">0%</span>
+                    </div>
+                    <div class="flex justify-between mt-2">
+                        <span id="stats-photo-with" class="text-[9px] font-bold text-[#9ca3af]">0 com foto</span>
+                        <span id="stats-photo-without" class="text-[9px] font-bold text-[#9ca3af]">0 sem foto</span>
+                    </div>
+                    <!-- Colaborador com mais fotos -->
+                    <div id="stats-photo-top" class="mt-3 pt-3 border-t border-[#f3f4f6] flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-full bg-[#fefce8] border border-[#fef08a] text-[#ca8a04] flex items-center justify-center text-[9px] font-black" id="stats-photo-top-initial">-</div>
+                        <div><p id="stats-photo-top-name" class="text-[11px] font-extrabold text-[#151515]">Nenhum</p><p id="stats-photo-top-count" class="text-[9px] text-[#9ca3af] font-bold">Mais fotos enviadas</p></div>
+                    </div>
+                </div>
+
+                <!-- Two columns: Destaque + Dia Crítico -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-white rounded-[14px] border border-[#e5e7eb] p-4" style="box-shadow:0 2px 8px rgba(15,23,42,.04)">
+                        <p class="text-[7px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 flex items-center gap-1"><span style="width:8px;height:2px;background:#22c55e;border-radius:2px;display:inline-block"></span> Destaque</p>
+                        <div class="w-10 h-10 rounded-full bg-[#151515] text-white flex items-center justify-center text-sm font-black mb-2.5 ring-2 ring-[#22c55e]/20" id="stats-top-initial">-</div>
+                        <p id="stats-top-name" class="text-[12px] font-extrabold text-[#151515] truncate">Nenhum</p>
+                        <p id="stats-top-count" class="text-[9px] text-[#9ca3af] font-bold mt-0.5">0 concluídas</p>
+                    </div>
+                    <div class="bg-white rounded-[14px] border border-[#e5e7eb] p-4" style="box-shadow:0 2px 8px rgba(15,23,42,.04)">
+                        <p class="text-[7px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 flex items-center gap-1"><span style="width:8px;height:2px;background:#ef4444;border-radius:2px;display:inline-block"></span> Dia Crítico</p>
+                        <div class="w-10 h-10 rounded-[10px] bg-[#fef2f2] border border-[#fecaca] text-[#e41e26] flex items-center justify-center text-base font-black mb-2.5" id="stats-worst-day">-</div>
+                        <p id="stats-worst-label" class="text-[12px] font-extrabold text-[#151515]">Nenhum</p>
+                        <p id="stats-worst-count" class="text-[9px] text-[#9ca3af] font-bold mt-0.5">0 pendentes</p>
+                    </div>
+                </div>
+
+                <!-- Two columns: Atrasadas + Inativos -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    <!-- Tarefas Atrasadas -->
+                    <div class="bg-white rounded-[14px] border border-[#e5e7eb] p-4" style="box-shadow:0 2px 8px rgba(15,23,42,.04)">
+                        <p class="text-[8px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span style="width:12px;height:2px;background:#ef4444;border-radius:2px;display:inline-block"></span> Tarefas Atrasadas</p>
+                        <div id="stats-overdue" class="flex flex-col gap-1.5 max-h-44 overflow-y-auto"></div>
+                    </div>
+                    <!-- Sem Atividade -->
+                    <div class="bg-white rounded-[14px] border border-[#e5e7eb] p-4" style="box-shadow:0 2px 8px rgba(15,23,42,.04)">
+                        <p class="text-[8px] font-bold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span style="width:12px;height:2px;background:#f59e0b;border-radius:2px;display:inline-block"></span> Colaboradores sem Atividade</p>
+                        <div id="stats-inactive" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+                </div>
+
+                <!-- Alertas -->
+                <div id="stats-alerts" class="bg-[#151515] rounded-[14px] p-4 sm:p-5 mb-6 relative overflow-hidden">
+                    <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(circle at 0% 0%,rgba(228,30,38,.08),transparent 50%)"></div>
+                    <p class="text-[8px] font-bold text-white/25 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5 relative z-10"><span style="width:12px;height:2px;background:#e41e26;border-radius:2px;display:inline-block"></span> Alertas Automáticos</p>
+                    <div id="stats-alerts-list" class="flex flex-col gap-1.5 relative z-10"></div>
+                </div>
+
+                </div><!-- /TAB Resumo -->
+
+                <!-- TAB: Histórico -->
+                <div id="stats-tab-historico" class="hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <p class="text-[9px] font-bold text-[#151515] uppercase tracking-[0.25em] flex items-center gap-1.5 mb-1">
+                                <span class="w-[16px] h-[2.5px] rounded-full bg-[#151515]"></span> Registro de Ações
+                            </p>
+                            <h3 class="display-heading text-xl sm:text-2xl text-[#151515]" style="line-height:.95">Histórico</h3>
+                        </div>
+                        <button onclick="loadMoreLogs()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[#e5e7eb] bg-white text-[#6b7280] hover:text-[#e41e26] hover:border-[#e41e26] transition-all text-[9px] font-bold uppercase tracking-wider">
+                            Carregar mais
+                        </button>
+                    </div>
+
+                    <!-- Filtro por tipo -->
+                    <div class="flex gap-1.5 flex-wrap mb-4">
+                        <button onclick="filterLogs('all')" class="log-filter-pill active" data-filter="all">Todos</button>
+                        <button onclick="filterLogs('CRIOU')" class="log-filter-pill" data-filter="CRIOU">Criações</button>
+                        <button onclick="filterLogs('EXCLUIU')" class="log-filter-pill" data-filter="EXCLUIU">Exclusões</button>
+                        <button onclick="filterLogs('EDITOU')" class="log-filter-pill" data-filter="EDITOU">Edições</button>
+                        <button onclick="filterLogs('MOVEU')" class="log-filter-pill" data-filter="MOVEU">Movimentos</button>
+                        <button onclick="filterLogs('CONCLUIU')" class="log-filter-pill" data-filter="CONCLUIU">Conclusões</button>
+                    </div>
+
+                    <!-- Timeline -->
+                    <div class="relative">
+                        <div class="absolute left-[11px] top-0 bottom-0 w-px bg-[#e5e7eb]"></div>
+                        <div id="stats-logs" class="flex flex-col gap-0 relative"></div>
+                    </div>
+                    <p id="stats-logs-empty" class="hidden text-[11px] text-[#9ca3af] text-center py-8">Nenhuma movimentação registrada</p>
+                </div><!-- /TAB Histórico -->
+
+            </div>
+
         </main>
 
     </section>

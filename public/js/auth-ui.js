@@ -395,6 +395,7 @@ window.addEventListener('load', () => {
       // Hide admin-only buttons for viewer
       document.getElementById('btn-team-management').classList.add('hidden');
       document.getElementById('btn-report').classList.add('hidden');
+      document.getElementById('btn-stats').classList.add('hidden');
       subscribeToTasks();
       animatePageTransition();
       renderCalendar();
@@ -555,10 +556,12 @@ function completeLogin() {
         if (isAdmin) {
             document.getElementById('btn-team-management').classList.remove('hidden');
             document.getElementById('btn-report').classList.remove('hidden');
+            document.getElementById('btn-stats').classList.remove('hidden');
             fetchColaborators();
         } else {
             document.getElementById('btn-team-management').classList.add('hidden');
             document.getElementById('btn-report').classList.add('hidden');
+            document.getElementById('btn-stats').classList.add('hidden');
         }
     }
     subscribeToTasks();
@@ -577,6 +580,7 @@ window.logout = function() {
   // Hide admin-only buttons immediately
   document.getElementById('btn-team-management').classList.add('hidden');
   document.getElementById('btn-report').classList.add('hidden');
+  document.getElementById('btn-stats').classList.add('hidden');
 
   // Always return to login UI immediately; signOut can take time/fail.
   showLoginScreen();
