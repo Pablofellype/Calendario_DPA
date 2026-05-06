@@ -189,9 +189,14 @@ window.handleRealPhoto = function(input, taskId) {
                 canvas.height = height;
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Converte para Base64 (Texto)
-                const base64String = canvas.toDataURL('image/jpeg', 0.75);
-
+                // Converte para Base64 - tenta qualidades decrescentes
+                let base64String = canvas.toDataURL('image/jpeg', 0.6);
+                if (base64String.length > MAX_PHOTO_BYTES) {
+                    base64String = canvas.toDataURL('image/jpeg', 0.4);
+                }
+                if (base64String.length > MAX_PHOTO_BYTES) {
+                    base64String = canvas.toDataURL('image/jpeg', 0.25);
+                }
                 if (base64String.length > MAX_PHOTO_BYTES) {
                     showCustomAlert('Foto muito grande. Tente aproximar menos ou tirar outra foto.');
                     return;
@@ -215,7 +220,11 @@ window.handleRealPhoto = function(input, taskId) {
                         showCustomAlert("FOTO ADICIONADA!", "success");
                     } catch(err) {
                         console.error(err);
-                        showCustomAlert("ERRO AO SALVAR FOTO.");
+                        if (err.message && err.message.includes('exceeds the maximum')) {
+                            showCustomAlert("Limite de fotos atingido! Exclua uma foto antiga antes de adicionar nova.");
+                        } else {
+                            showCustomAlert("ERRO AO SALVAR FOTO.");
+                        }
                     }
                 }
             }
