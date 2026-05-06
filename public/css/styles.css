@@ -966,8 +966,9 @@ button:focus-visible {
 }
 #weekly-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 6px;
+    overflow: hidden;
 }
 .weekly-day {
     background: white;
@@ -979,6 +980,8 @@ button:focus-visible {
     min-height: 120px;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
 }
 .weekly-day:hover {
     border-color: rgba(228,30,38,0.3);
@@ -1039,6 +1042,8 @@ button:focus-visible {
     background: #fafafa;
     border: 1px solid #f3f4f6;
     transition: background 0.15s;
+    min-width: 0;
+    overflow: hidden;
 }
 .weekly-task:hover { background: #f3f4f6; }
 .weekly-task-done { opacity: 0.5; }

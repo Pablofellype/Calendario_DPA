@@ -46,15 +46,15 @@ export function getTaskEditPermission(task) {
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
 
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
+  const twoDaysAgo = new Date(today);
+  twoDaysAgo.setDate(today.getDate() - 2);
 
   const taskDate = new Date(p.y, p.mo - 1, p.d);
   taskDate.setHours(0, 0, 0, 0);
   if (Number.isNaN(taskDate.getTime())) return { ok: false, reason: 'invalid_date' };
 
   if (taskDate > today) return { ok: false, reason: 'future' };
-  if (taskDate < yesterday) return { ok: false, reason: 'too_old' };
+  if (taskDate < twoDaysAgo) return { ok: false, reason: 'too_old' };
 
   return { ok: true, reason: 'ok' };
 }
@@ -72,7 +72,7 @@ export function taskEditDenyMessage(reason) {
     case 'future':
       return 'Colaborador não pode marcar dias futuros.';
     case 'too_old':
-      return 'Colaborador só pode marcar hoje e ontem.';
+      return 'Prazo expirado! Você só pode concluir atividades de até 2 dias atrás. Avise seu gestor para adicionar a foto de conclusão.';
     default:
       return 'Ação não permitida.';
   }

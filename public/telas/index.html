@@ -1,0 +1,2248 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lavação de Telas | Calendario DPA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Archivo+Black&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Reflector.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #ffffff; touch-action: none; }
+        #canvas-container { width: 100%; height: 100vh; cursor: default; }
+        #canvas-container.ready { cursor: grab; }
+        #canvas-container.ready:active { cursor: grabbing; }
+
+        /* ─── Visual Tela/Portão com grid 5x5 ─── */
+        .tela-frame {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .tela-post {
+            width: 6px;
+            background: linear-gradient(180deg, #94a3b8, #64748b, #94a3b8);
+            border-radius: 3px;
+            flex-shrink: 0;
+            box-shadow: inset -1px 0 2px rgba(0,0,0,0.15);
+        }
+        .tela-post-left { border-radius: 3px 0 0 3px; }
+        .tela-post-right { border-radius: 0 3px 3px 0; box-shadow: inset 1px 0 2px rgba(0,0,0,0.15); }
+        .tela-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .tela-top-bar, .tela-bottom-bar {
+            height: 6px;
+            background: linear-gradient(90deg, #94a3b8, #cbd5e1, #94a3b8);
+            box-shadow: inset 0 -1px 2px rgba(0,0,0,0.1);
+        }
+        .tela-top-bar { border-radius: 0; }
+        .tela-bottom-bar { border-radius: 0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); }
+        .tela-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 2px;
+            padding: 2px;
+            background: #e2e8f0;
+            aspect-ratio: 5 / 4;
+        }
+        .tela-cell {
+            background: #fecaca;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.22, 0.78, 0.24, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .tela-cell:hover { filter: brightness(1.1); transform: scale(1.05); }
+        .tela-cell:active { transform: scale(0.92); }
+        .tela-cell.filled {
+            background: #22c55e;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 0 6px rgba(34,197,94,0.3);
+        }
+        .tela-cell.filled::after {
+            content: '✓';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 900;
+            color: rgba(255,255,255,0.7);
+        }
+        .tela-cell.partial {
+            background: #fde68a;
+        }
+        .tela-cell.locked {
+            background: #22c55e;
+            cursor: not-allowed;
+            opacity: 0.7;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+        .tela-cell.locked::after {
+            content: '✓';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: 900;
+            color: rgba(255,255,255,0.5);
+        }
+        .tela-cell.locked:hover { filter: none; transform: none; }
+        .tela-cell.locked:active { transform: none; }
+        @keyframes cellPop {
+            0% { transform: scale(0.7); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+        .tela-cell.just-filled {
+            animation: cellPop 0.3s cubic-bezier(0.22, 0.78, 0.24, 1);
+        }
+
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+
+        /* Sidebar mobile telas */
+        @media (max-width: 767px) {
+            #main-ui.sidebar-open {
+                display: flex !important;
+                position: fixed;
+                top: 0; left: 0;
+                width: 100vw; height: 100vh;
+                background: #ffffff;
+                z-index: 20;
+                padding-top: 70px;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            #main-ui.sidebar-open .ui-element { opacity: 1 !important; }
+        }
+
+        #modal-slider {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; height: 12px; background: #fecaca;
+            border-radius: 8px; outline: none;
+        }
+        #modal-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 28px; height: 28px; border-radius: 50%;
+            background: #16a34a; border: 4px solid white; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: transform 0.1s;
+        }
+        #modal-slider::-webkit-slider-thumb:active { transform: scale(1.1); }
+
+        #joystick-zone { touch-action: none; }
+
+        /* Auth loading overlay */
+        #auth-loading {
+            position: fixed; inset: 0; z-index: 9999;
+            background: #ffffff;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        #auth-loading.fade-out {
+            opacity: 0; transform: scale(1.1);
+            pointer-events: none;
+        }
+        #auth-loading.hidden { display: none; }
+
+        .telas-wire {
+            fill: none;
+            stroke: rgba(228,30,38,0.15);
+            stroke-width: 1.5;
+            animation: wireTrace 3s ease-in-out infinite;
+        }
+        /* Sequencial: cada tela acende uma após outra */
+        .tw-1  { animation-delay: 0s; }
+        .tw-2  { animation-delay: 0.15s; }
+        .tw-3  { animation-delay: 0.3s; }
+        .tw-4  { animation-delay: 0.45s; }
+        .tw-5  { animation-delay: 0.6s; }
+        .tw-6  { animation-delay: 0.75s; }
+        .tw-7  { animation-delay: 0.9s; }
+        .tw-8  { animation-delay: 1.05s; }
+        .tw-9  { animation-delay: 1.2s; }
+        .tw-10 { animation-delay: 1.35s; }
+        .tw-11 { animation-delay: 1.5s; }
+        .tw-12 { animation-delay: 1.65s; }
+        .tw-13 { animation-delay: 1.8s; }
+        .tw-14 { animation-delay: 1.95s; }
+        .tw-15 { animation-delay: 2.1s; }
+        .tw-16 { animation-delay: 2.25s; }
+        .tw-17 { animation-delay: 2.4s; }
+        .tw-18 { animation-delay: 2.55s; }
+
+        @keyframes wireTrace {
+            0%, 100% { stroke: rgba(228,30,38,0.15); stroke-width: 1.5; }
+            50% { stroke: rgba(228,30,38,0.8); stroke-width: 2.5; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Auth Loading - wireframe das telas (planta baixa) -->
+    <div id="auth-loading">
+        <svg viewBox="0 0 200 240" class="loading-plant" style="width:min(60vw,280px);height:auto;">
+          <g transform="rotate(180 100 120)">
+            <!-- TELA 01-04: parede superior -->
+            <rect x="21" y="18.5" width="38" height="3" rx="1" class="telas-wire tw-1"/>
+            <rect x="61" y="18.5" width="38" height="3" rx="1" class="telas-wire tw-2"/>
+            <rect x="101" y="18.5" width="38" height="3" rx="1" class="telas-wire tw-3"/>
+            <rect x="141" y="18.5" width="38" height="3" rx="1" class="telas-wire tw-4"/>
+            <!-- TELA 05-09: parede direita -->
+            <rect x="178.5" y="21" width="3" height="38" rx="1" class="telas-wire tw-5"/>
+            <rect x="178.5" y="61" width="3" height="38" rx="1" class="telas-wire tw-6"/>
+            <rect x="178.5" y="101" width="3" height="38" rx="1" class="telas-wire tw-7"/>
+            <rect x="178.5" y="141" width="3" height="38" rx="1" class="telas-wire tw-8"/>
+            <rect x="178.5" y="181" width="3" height="38" rx="1" class="telas-wire tw-9"/>
+            <!-- TELA 10-12: parede inferior -->
+            <rect x="141" y="218.5" width="38" height="3" rx="1" class="telas-wire tw-10"/>
+            <rect x="101" y="218.5" width="38" height="3" rx="1" class="telas-wire tw-11"/>
+            <rect x="61" y="218.5" width="38" height="3" rx="1" class="telas-wire tw-12"/>
+            <!-- TELA 13-14: parede interior esquerda inferior -->
+            <rect x="58.5" y="181" width="3" height="38" rx="1" class="telas-wire tw-13"/>
+            <rect x="58.5" y="141" width="3" height="38" rx="1" class="telas-wire tw-14"/>
+            <!-- TELA 15: parede interior horizontal -->
+            <rect x="21" y="138.5" width="38" height="3" rx="1" class="telas-wire tw-15"/>
+            <!-- TELA 16-18: parede esquerda -->
+            <rect x="18.5" y="101" width="3" height="38" rx="1" class="telas-wire tw-16"/>
+            <rect x="18.5" y="61" width="3" height="38" rx="1" class="telas-wire tw-17"/>
+            <rect x="18.5" y="21" width="3" height="38" rx="1" class="telas-wire tw-18"/>
+          </g>
+        </svg>
+    </div>
+
+    <!-- Header idêntico ao calendário principal -->
+    <header id="telas-header" class="fixed top-0 left-0 right-0 z-30 corp-header ui-element opacity-0">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-[10px] sm:rounded-[12px] overflow-hidden flex-shrink-0 corp-header-logo p-1 sm:p-1.5">
+                    <img src="https://i.postimg.cc/c4LqxjXc/capa-calendario-nova.png" alt="Logo" class="w-full h-full object-contain">
+                </div>
+                <div class="min-w-0">
+                    <h1 class="text-sm sm:text-base lg:text-lg font-display font-black leading-none text-[#151515] truncate tracking-tight">Calendario<span class="text-[#e41e26]">DPA</span></h1>
+                    <span id="user-role-badge" class="text-[9px] sm:text-[10px] font-bold text-[#94a3b8] uppercase tracking-[0.18em] truncate block max-w-[90px] sm:max-w-[120px] lg:max-w-none">...</span>
+                </div>
+            </div>
+            <div class="corp-header-actions flex gap-1 flex-shrink-0">
+                <!-- Voltar ao Calendário -->
+                <a href="/index.html" class="group w-9 h-9 rounded-[10px] flex items-center justify-center text-[#6b7280] hover:text-[#e41e26] hover:bg-[#fef2f2] transition-all" title="Voltar ao Calendário">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </a>
+                <!-- Equipe (colaboradores) -->
+                <button id="btn-team" onclick="openTeamModal()" class="hidden group w-9 h-9 rounded-[10px] flex items-center justify-center text-[#6b7280] hover:text-blue-600 hover:bg-blue-50 transition-all" title="Gerenciar Equipe">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                </button>
+                <!-- Modo FPS -->
+                <button id="btn-fps-header" onclick="toggleFPSMode()" class="group w-9 h-9 rounded-[10px] flex items-center justify-center text-[#6b7280] hover:text-slate-900 hover:bg-slate-100 transition-all" title="Modo 1ª Pessoa">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                </button>
+                <!-- Sair -->
+                <button onclick="doLogout()" class="group w-9 h-9 rounded-[10px] flex items-center justify-center text-[#94a3b8] hover:text-[#e41e26] hover:bg-[#fef2f2] transition-all" title="Sair">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- UI Overlay: Info do 3D -->
+    <!-- Botão toggle sidebar mobile -->
+    <button id="btn-open-sidebar" onclick="toggleTelasSidebar()" class="fixed top-16 left-3 z-20 md:hidden pointer-events-auto bg-white/90 backdrop-blur-md shadow-lg border border-gray-200 rounded-xl px-3 py-2 flex items-center gap-2 active:scale-95 transition-all ui-element opacity-0">
+        <svg class="w-4 h-4 text-[#e41e26]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span id="sidebar-progress-mini" class="text-[10px] font-black text-gray-700">0/36</span>
+    </button>
+
+    <!-- Backdrop mobile -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-black/30 z-10 hidden md:hidden" onclick="toggleTelasSidebar()"></div>
+
+    <div id="main-ui" class="fixed top-14 left-0 w-full md:w-auto p-4 md:p-6 z-20 flex flex-col pointer-events-none transition-all duration-300 hidden md:flex" style="max-width:100vw;">
+
+        <!-- Fechar sidebar mobile -->
+        <button onclick="toggleTelasSidebar()" class="md:hidden pointer-events-auto self-end mb-2 w-8 h-8 bg-white rounded-full shadow border border-gray-200 flex items-center justify-center text-gray-500 active:scale-90">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+
+        <div class="w-full relative flex flex-col md:flex-row justify-between items-start md:items-center ui-element opacity-0">
+            <div class="w-full flex justify-between items-center md:w-auto z-10 pointer-events-auto">
+                <h1 class="text-xl md:text-3xl font-black text-gray-900 tracking-tighter drop-shadow-sm uppercase">Telas Estoque</h1>
+            </div>
+
+            <div class="w-full flex flex-col items-center md:absolute md:left-1/2 md:-translate-x-1/2 md:top-0 z-10 pointer-events-auto mt-2 md:mt-0">
+                <h2 id="dynamic-date" class="text-xl md:text-3xl font-black text-gray-900 tracking-tighter drop-shadow-sm uppercase whitespace-nowrap">CARREGANDO...</h2>
+                <div class="flex items-center mt-1">
+                    <div class="w-3 md:w-4 h-1 bg-red-600 mr-2 rounded-full"></div>
+                    <span class="text-red-600 font-bold text-[10px] md:text-xs tracking-widest uppercase">Atividades do Dia</span>
+                    <div class="w-3 md:w-4 h-1 bg-red-600 ml-2 rounded-full"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pointer-events-auto w-full max-w-[85vw] md:max-w-[340px] mt-4 md:mt-6 ui-element opacity-0">
+            <div class="bg-white/80 backdrop-blur-md p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 transition-all hover:scale-105 origin-left">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-[10px] md:text-xs font-black text-gray-500 tracking-widest uppercase">Limpeza do Estoque</span>
+                    <span id="progress-text" class="text-xs md:text-sm font-black text-gray-900">0/36 (0%)</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2 md:h-2.5 overflow-hidden shadow-inner">
+                    <div id="progress-bar" class="bg-green-500 h-full rounded-full relative" style="width: 0%; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(34,197,94,0.6);"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendário Semanal Vertical -->
+        <div class="pointer-events-auto w-full max-w-[85vw] md:max-w-[340px] mt-3 ui-element opacity-0" style="max-height:calc(100vh - 200px);overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;">
+            <!-- Navegação de mês -->
+            <div class="bg-white/90 backdrop-blur-md rounded-xl border border-gray-100 shadow-sm p-2 mb-2">
+                <div class="flex items-center justify-between">
+                    <button onclick="changeWeek(-4)" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-[#e41e26] hover:bg-red-50 transition-all" title="Mês anterior">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+                    </button>
+                    <button onclick="changeWeek(-1)" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-[#e41e26] hover:bg-red-50 transition-all" title="Semana anterior">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <div class="text-center flex-1 min-w-0">
+                        <span id="week-label" class="text-[10px] md:text-[11px] font-black text-[#151515] tracking-wide uppercase block leading-tight"></span>
+                        <span id="week-range" class="text-[8px] font-bold text-gray-400 tracking-wider uppercase"></span>
+                    </div>
+                    <button onclick="changeWeek(1)" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-[#e41e26] hover:bg-red-50 transition-all" title="Próxima semana">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                    <button onclick="changeWeek(4)" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-[#e41e26] hover:bg-red-50 transition-all" title="Próximo mês">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>
+                    </button>
+                </div>
+                <!-- Botão Hoje -->
+                <button onclick="goToToday()" class="w-full mt-1.5 py-1 text-[8px] font-black text-[#e41e26] uppercase tracking-widest hover:bg-red-50 rounded-lg transition-all">Hoje</button>
+            </div>
+            <!-- Grid dos dias -->
+            <div id="week-grid" class="flex flex-col gap-1"></div>
+        </div>
+    </div>
+
+    <!-- UI Exclusiva Modo FPS -->
+    <div id="fps-ui" class="fixed inset-0 pointer-events-none z-20 hidden flex-col justify-between p-6">
+        <div class="w-full flex justify-end gap-3 pointer-events-auto">
+            <button id="btn-teleport" onclick="teleportFPS()" class="bg-blue-600 px-5 py-3 rounded-2xl shadow-lg text-white font-black text-xs tracking-widest uppercase hover:scale-105 transition active:scale-95 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+                <span>SAIR DO ARMAZÉM</span>
+            </button>
+
+            <button onclick="toggleFPSMode()" class="bg-red-600 p-3 rounded-2xl shadow-lg text-white hover:scale-110 transition active:scale-95 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Instruções -->
+    <div class="fixed bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 w-[90%] md:w-auto max-w-md z-10 text-center pointer-events-none shadow-xl ui-element opacity-0 transition-opacity duration-300" id="instruction-container">
+        <p id="instruction-text" class="bg-black/80 text-white px-4 md:px-5 py-2 md:py-3 rounded-full text-[11px] md:text-sm font-medium backdrop-blur-md">
+            Arraste para girar a planta. Clique no lado de dentro ou de fora das <span class="text-red-400 font-bold underline">telas</span>.
+        </p>
+    </div>
+
+    <!-- JOYSTICK VIRTUAL (Apenas visível em modo FPS Mobile) -->
+    <div id="joystick-zone" class="fixed bottom-8 left-8 w-32 h-32 bg-slate-900/30 rounded-full backdrop-blur-md border border-white/20 hidden pointer-events-auto z-40 items-center justify-center shadow-[0_0_30px_rgba(0,0,0,0.2)]">
+        <div id="joystick-knob" class="w-12 h-12 bg-white/70 rounded-full shadow-lg absolute"></div>
+    </div>
+
+    <!-- Modal Equipe (idêntico ao calendário principal - SÓ LEITURA) -->
+    <div id="telas-team-modal" class="fixed inset-0 z-50 bg-[#151515]/50 backdrop-blur-sm hidden opacity-0 flex items-end sm:items-center justify-center sm:p-4" onclick="if(event.target===this)closeTeamModal()">
+        <div class="bottom-sheet bg-[#fafafa] w-full sm:w-[520px] h-[92vh] sm:h-[82vh] flex flex-col overflow-hidden relative rounded-t-[20px] sm:rounded-[20px]">
+            <!-- Header -->
+            <div class="flex-shrink-0 sticky top-0 z-10">
+                <div class="px-6 pt-5 pb-4 bg-white relative overflow-hidden rounded-t-[20px]">
+                    <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#e41e26] via-[#e41e26]/60 to-transparent"></div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-[22px] sm:text-2xl text-[#151515] font-black tracking-tight" style="font-family:'Archivo Black',sans-serif;line-height:1.1">Equipe</h3>
+                            <p class="text-[10px] font-bold text-[#e41e26] uppercase tracking-[0.22em] mt-2 flex items-center gap-2">
+                                <span class="w-[18px] h-[3px] rounded-full bg-[#e41e26]"></span> Gerenciar Colaboradores
+                            </p>
+                        </div>
+                        <button onclick="closeTeamModal()" class="w-10 h-10 rounded-[10px] flex items-center justify-center text-[#94a3b8] hover:text-[#151515] hover:bg-[#fafafa] transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="h-px bg-gradient-to-r from-[#e5e7eb] via-[#e5e7eb] to-transparent"></div>
+            </div>
+            <!-- Busca -->
+            <div class="px-4 pt-3 pb-1 flex-shrink-0">
+                <div class="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8] pointer-events-none z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input id="telas-team-search" type="text" placeholder="Buscar colaborador..." oninput="filterTelasTeam(this.value)" class="w-full bg-[#fafafa] rounded-[10px] pl-10 pr-4 py-2.5 text-[13px] font-bold outline-none focus:ring-2 focus:ring-[#e41e26]/10 focus:bg-white focus:border-[#e41e26] transition-all border border-[#e5e7eb] placeholder-[#cbd5e1] text-[#151515]">
+                </div>
+            </div>
+            <!-- Lista -->
+            <div id="telas-team-list" class="flex-1 overflow-y-auto px-4 py-3 space-y-2.5"></div>
+        </div>
+    </div>
+
+    <!-- Modal Atividades do Dia (LADO ESQUERDO) -->
+    <div id="day-modal" style="display:none;opacity:0;" class="fixed inset-y-0 left-0 w-full md:w-[450px] glass shadow-2xl z-50 flex-col border-r border-gray-200 pointer-events-auto">
+        <div class="w-full">
+            <div class="px-6 pt-5 pb-4 bg-white relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#e41e26] via-[#e41e26]/60 to-transparent"></div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 id="day-modal-title" class="text-[22px] sm:text-2xl text-[#151515] font-black tracking-tight" style="font-family:'Archivo Black',sans-serif;line-height:1.1">05 de Maio</h3>
+                        <p class="text-[10px] font-bold text-[#e41e26] uppercase tracking-[0.22em] mt-2 flex items-center gap-2">
+                            <span class="w-[18px] h-[3px] rounded-full bg-[#e41e26]"></span> Atividades do Dia
+                        </p>
+                    </div>
+                    <button onclick="closeDayModal()" class="w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-red-100 hover:text-red-600 rounded-full transition active:scale-90 text-gray-500">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="h-px bg-gradient-to-r from-[#e5e7eb] via-[#e5e7eb] to-transparent"></div>
+        </div>
+
+        <!-- Formulário admin: wizard de 2 passos igual calendário principal -->
+        <div id="day-admin-area" class="hidden flex-shrink-0">
+            <div class="mx-4 mt-4 mb-2 bg-white rounded-[14px] border border-[#e5e7eb] overflow-hidden" style="box-shadow:0 10px 30px rgba(15,23,42,0.06)">
+                <div class="px-5 pt-4 pb-3 flex items-center justify-between">
+                    <p class="text-[10px] font-extrabold text-[#e41e26] uppercase tracking-[0.22em] flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                        Atribuir Lavação
+                    </p>
+                    <div class="flex items-center gap-1.5" id="day-step-dots">
+                        <span class="h-2 rounded-full transition-all duration-300" style="width:16px;background:#e41e26"></span>
+                        <span class="h-2 rounded-full transition-all duration-300" style="width:8px;background:rgba(228,30,38,0.2)"></span>
+                    </div>
+                </div>
+
+                <!-- STEP 1: Selecionar Tela -->
+                <div id="day-step-1" class="px-5 pb-5">
+                    <div class="flex gap-3.5">
+                        <div class="flex flex-col items-center">
+                            <div class="w-7 h-7 rounded-full bg-[#e41e26] text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-sm shadow-[#e41e26]/20">1</div>
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[11px] font-extrabold text-[#151515] mb-1 block tracking-tight">Tela</label>
+                            <p class="text-[9px] text-[#9ca3af] mb-3">Selecione qual tela será lavada neste dia</p>
+                            <!-- Grid de telas para selecionar -->
+                            <div id="day-tela-grid" class="grid grid-cols-6 gap-1.5 mb-2">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pt-3">
+                        <button type="button" onclick="dayGoToStep(2)" class="w-full py-3 bg-[#e41e26] hover:bg-[#c61a21] text-white rounded-xl font-extrabold text-[13px] tracking-wide active:scale-[0.97] transition-all flex items-center justify-center gap-2" style="box-shadow:0 4px 14px rgba(228,30,38,0.25)">
+                            Próximo <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 2: Selecionar Responsável -->
+                <div id="day-step-2" class="px-5 pb-5 hidden">
+                    <div class="flex gap-3.5">
+                        <div class="flex flex-col items-center">
+                            <div class="w-7 h-7 rounded-full bg-[#e41e26] text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-sm shadow-[#e41e26]/20">2</div>
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[11px] font-extrabold text-[#151515] mb-1 block tracking-tight">Responsável</label>
+                            <p class="text-[9px] text-[#9ca3af] mb-3">Selecione quem vai executar a lavação</p>
+                            <div id="day-selected-collabs" class="flex flex-wrap gap-1.5 empty:hidden mb-2"></div>
+                            <div class="relative">
+                                <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8] pointer-events-none z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input id="day-collab-input" type="text" placeholder="Busque por nome..." autocomplete="off" oninput="this.value=this.value.toUpperCase();filterDayCollabs(this.value)" class="w-full bg-[#f8f8f8] rounded-[10px] pl-10 pr-4 py-3 text-[13px] font-bold outline-none focus:ring-2 focus:ring-[#e41e26]/10 focus:bg-white focus:border-[#e41e26] transition-all border border-[#e5e7eb] placeholder-[#cbd5e1] text-[#151515]">
+                                <div id="day-collab-suggestions" class="absolute top-full left-0 w-full bg-white border border-[#e5e7eb] rounded-[12px] z-50 hidden max-h-48 overflow-y-auto mt-1.5 clean-scroll" style="box-shadow:0 20px 40px rgba(15,23,42,0.12)"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pt-4 flex gap-3">
+                        <button type="button" onclick="dayGoToStep(1)" class="flex-1 py-3 bg-[#fafafa] text-[#6b7280] font-extrabold text-[13px] rounded-xl hover:bg-[#e5e7eb] transition-all border border-[#e5e7eb] flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg> Voltar
+                        </button>
+                        <button type="button" onclick="addDayTask()" class="flex-1 py-3 bg-[#e41e26] hover:bg-[#c61a21] text-white rounded-xl font-extrabold text-[13px] tracking-wide active:scale-[0.97] transition-all flex items-center justify-center gap-2" style="box-shadow:0 4px 14px rgba(228,30,38,0.25)">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Atribuir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de atividades -->
+        <div class="flex-1 overflow-y-auto px-4 py-4">
+            <div id="day-task-list" class="space-y-3">
+                <div id="day-empty-state" class="flex flex-col items-center justify-center py-16 text-center">
+                    <div class="w-14 h-14 rounded-full bg-[#fafafa] border border-[#e5e7eb] flex items-center justify-center mb-4 text-[#cbd5e1]">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <p class="text-[11px] text-[#94a3b8] font-bold uppercase tracking-[0.18em]">Nenhuma atividade agendada</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container do Three.js -->
+    <div id="canvas-container"></div>
+
+    <!-- Modal Lateral/Bottom -->
+    <div id="modal" style="display: none; opacity: 0; transform: translateY(50px);" class="fixed inset-x-0 bottom-0 top-16 md:top-0 md:inset-y-0 md:left-auto md:right-0 w-full md:w-[450px] glass shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl z-50 flex-col rounded-t-3xl md:rounded-none border-t md:border-t-0 md:border-l border-gray-200 pointer-events-auto">
+        <div id="modal-header" class="w-full">
+            <div class="px-5 pt-5 pb-5 md:p-6 border-b border-gray-100 flex justify-between items-center">
+                <div>
+                    <h2 id="modal-title" class="text-lg md:text-xl font-black text-gray-900 uppercase">LADO SUPERIOR</h2>
+                    <p class="text-gray-400 text-[10px] md:text-xs font-bold tracking-widest uppercase mt-0.5">Mapeamento de Tela</p>
+                </div>
+                <button onclick="closeModal(false)" class="w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-red-100 hover:text-red-600 rounded-full transition active:scale-90 text-gray-500 z-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 md:p-6 space-y-6 md:space-y-8">
+            <section class="bg-gray-50/50 p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[10px] md:text-xs font-black text-gray-500 tracking-widest uppercase">Progresso Concluído</span>
+                    <span id="modal-progress-text" class="text-2xl font-black text-green-600 drop-shadow-sm">0%</span>
+                </div>
+                <!-- Visual da Tela com grid 5x5 -->
+                <div class="tela-frame">
+                    <div class="tela-post tela-post-left"></div>
+                    <div class="tela-body">
+                        <div class="tela-top-bar"></div>
+                        <div id="tela-grid" class="tela-grid">
+                        </div>
+                        <div class="tela-bottom-bar"></div>
+                    </div>
+                    <div class="tela-post tela-post-right"></div>
+                </div>
+                <div class="flex justify-between text-[8px] text-gray-400 font-bold mt-3 px-1">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-[#fecaca]"></span> Sujo</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-[#fde68a]"></span> Parcial</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-[#22c55e]"></span> Limpo</span>
+                </div>
+                <!-- Slider oculto para manter compatibilidade -->
+                <input type="range" id="modal-slider" min="0" max="100" step="4" value="0" class="hidden">
+            </section>
+
+            <section class="space-y-3">
+                <h3 class="text-gray-400 text-[10px] md:text-xs font-black tracking-widest uppercase">Responsáveis</h3>
+                <div class="space-y-2" id="collaborators-list">
+                    <p id="no-collab-msg" class="text-[11px] text-gray-400 font-bold text-center py-4">Nenhum responsável atribuído para esta tela hoje</p>
+                </div>
+            </section>
+
+            <!-- Aviso foto obrigatória -->
+            <div id="photo-warning" class="hidden bg-[#fffbeb] border border-[#fbbf24]/20 rounded-xl px-3.5 py-3">
+                <div class="flex items-start gap-2">
+                    <svg class="w-4 h-4 text-[#f59e0b] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-[10px] font-bold text-[#92400e] leading-relaxed"><strong>Comprovante obrigatório!</strong> Envie uma foto ou escreva uma observação antes de concluir.</p>
+                </div>
+            </div>
+
+            <section class="space-y-3">
+                <h3 class="text-gray-400 text-[10px] md:text-xs font-black tracking-widest uppercase">Comprovante</h3>
+                <div class="flex gap-3 md:gap-4">
+                    <div id="photo-preview" class="hidden w-24 h-28 md:w-28 md:h-32 bg-gray-200 rounded-2xl overflow-hidden shadow-inner relative group flex-shrink-0">
+                        <img id="preview-img" src="" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer" onclick="removePhoto()">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                             </svg>
+                        </div>
+                    </div>
+                    <label class="w-24 h-28 md:w-28 md:h-32 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:border-red-300 hover:bg-red-50 transition active:scale-95 bg-white flex-shrink-0">
+                        <input type="file" id="photo-input" class="hidden" accept="image/*" capture="environment" onchange="handlePhoto(this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-8 md:w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span class="text-[9px] md:text-[10px] font-black uppercase tracking-widest">Foto</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Histórico de limpeza -->
+            <section id="cleaning-history" class="space-y-3 hidden">
+                <h3 class="text-gray-400 text-[10px] md:text-xs font-black tracking-widest uppercase">Histórico</h3>
+                <div id="history-list" class="flex flex-col gap-2.5 max-h-64 overflow-y-auto" style="scrollbar-width:none;"></div>
+            </section>
+
+            <section class="space-y-3 pb-6">
+                <h3 class="text-gray-400 text-[10px] md:text-xs font-black tracking-widest uppercase">Observações</h3>
+                <div class="relative">
+                    <input type="text" id="observation-input" placeholder="ESCREVER OBSERVAÇÃO..." class="w-full bg-white md:bg-gray-100 p-4 pr-12 rounded-2xl font-bold text-xs md:text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-100 border border-gray-100 md:border-none shadow-sm md:shadow-none">
+                    <button id="btn-send-obs" onclick="saveObservationBtn()" class="absolute right-2 top-1/2 -translate-y-1/2 bg-red-600 p-2 rounded-xl text-white shadow-md hover:scale-110 transition">
+                        <svg id="icon-send-obs" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5 rotate-45" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                        </svg>
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <div class="p-5 md:p-6 bg-white border-t border-gray-100 md:border-none">
+            <button id="btn-concluir" onclick="confirmCleaning(event)" class="relative overflow-hidden w-full bg-red-600 text-white py-4 md:py-5 rounded-2xl shadow-xl transition-colors pointer-events-auto">
+                <div class="flex items-center justify-center gap-3 relative z-10 pointer-events-none font-black text-base md:text-lg">
+                    <span id="btn-text">CONCLUIR LIMPEZA</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Firebase Auth (same config as main app - SÓ LEITURA) -->
+    <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBMpxNUHou-mXL4lvWhSHiMWbhRWBjqGZg",
+        authDomain: "calendariosemanal-03.firebaseapp.com",
+        projectId: "calendariosemanal-03",
+        storageBucket: "calendariosemanal-03.firebasestorage.app",
+        messagingSenderId: "407070112925",
+        appId: "1:407070112925:web:9dc553f40dab5b05206874"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Logout
+    window.doLogout = async function() {
+        try { localStorage.removeItem('pl_session_v1'); } catch(e) {}
+        await signOut(auth);
+        window.location.href = '/index.html';
+    };
+
+    // Dados dos colaboradores (exposto globalmente para o autocomplete)
+    window.telasTeamData = [];
+
+    // Role global para controle de permissões
+    window.currentUserRole = 'visitante'; // 'admin', 'colaborador', 'visitante'
+    window.currentUserMatricula = '';
+    window.currentUserName = '';
+
+    // Carregar colaboradores (SÓ LEITURA - mesmo formato do calendário principal)
+    async function loadTeamList() {
+        try {
+            const snapshot = await getDocs(collection(db, 'users'));
+            window.telasTeamData = [];
+            snapshot.forEach(d => {
+                const data = d.data();
+                const nome = (data.nome || data.name || '').trim();
+                if (!nome) return;
+                window.telasTeamData.push({
+                    id: d.id,
+                    matricula: d.id,
+                    nome: nome.toUpperCase(),
+                    funcao: (data.funcao || 'COLABORADOR').toUpperCase(),
+                    active: data.active !== false,
+                    photo: data.photo || null
+                });
+            });
+            window.telasTeamData.sort((a, b) => a.nome.localeCompare(b.nome));
+            // Resolver nome do usuário logado a partir da matrícula
+            if (window.currentUserMatricula) {
+                const me = window.telasTeamData.find(u => u.matricula === window.currentUserMatricula);
+                if (me) window.currentUserName = me.nome;
+            }
+            renderTelasTeam(window.telasTeamData);
+        } catch(e) { console.error(e); }
+    }
+
+    function renderTelasTeam(users) {
+        const list = document.getElementById('telas-team-list');
+        list.innerHTML = '';
+        users.forEach((user, idx) => {
+            const avatar = user.photo
+                ? `<img src="${user.photo}" class="w-11 h-11 rounded-full object-cover border-2 border-white" style="box-shadow:0 2px 8px rgba(15,23,42,0.08)">`
+                : `<div class="w-11 h-11 rounded-full bg-[#e41e26] flex items-center justify-center text-white font-black text-sm" style="box-shadow:0 4px 12px rgba(228,30,38,0.2)">${user.nome.charAt(0)}</div>`;
+            const statusDot = user.active
+                ? `<span class="w-2 h-2 rounded-full bg-[#22c55e] shadow-[0_0_6px_rgba(34,197,94,0.4)]"></span>`
+                : `<span class="w-2 h-2 rounded-full bg-[#ef4444]"></span>`;
+            const item = document.createElement('div');
+            item.className = 'group bg-white p-4 rounded-[14px] border border-[#e5e7eb] flex items-center transition-all hover:border-[#e41e26]/20';
+            item.style.cssText = `box-shadow:0 2px 8px rgba(15,23,42,0.03); animation: teamCardIn 400ms cubic-bezier(.22,.78,.24,1) both; animation-delay: ${idx * 40}ms`;
+            item.innerHTML = `
+                <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                    <div class="relative flex-shrink-0">
+                        ${avatar}
+                        <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white flex items-center justify-center border border-[#e5e7eb]">
+                            ${statusDot}
+                        </div>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="font-extrabold text-[#151515] text-[13px] tracking-tight truncate ${!user.active ? 'line-through text-[#94a3b8]' : ''}">${user.nome}</h4>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-[10px] text-[#6b7280] font-bold uppercase tracking-[0.1em] truncate">${user.funcao}</span>
+                            <span class="text-[#e5e7eb]">·</span>
+                            <span class="text-[10px] font-bold text-[#94a3b8] bg-[#fafafa] px-1.5 py-0.5 rounded-md border border-[#e5e7eb]">#${user.matricula}</span>
+                            ${!user.active ? '<span class="text-[9px] font-extrabold text-[#ef4444] bg-[#fef2f2] px-1.5 py-0.5 rounded-full border border-[#fecaca] uppercase tracking-wider">Inativo</span>' : ''}
+                        </div>
+                    </div>
+                </div>`;
+            list.appendChild(item);
+        });
+        if (users.length === 0) {
+            list.innerHTML = '<p class="text-center text-xs text-[#94a3b8] font-bold py-8 uppercase tracking-wider">Nenhum colaborador encontrado</p>';
+        }
+    }
+
+    // Filtro de busca
+    window.filterTelasTeam = function(query) {
+        const q = query.toUpperCase().trim();
+        if (!q) { renderTelasTeam(window.telasTeamData); return; }
+        const filtered = window.telasTeamData.filter(u => u.nome.includes(q) || u.matricula.includes(q));
+        renderTelasTeam(filtered);
+    };
+
+    // Abrir/fechar modal equipe
+    window.openTeamModal = function() {
+        const modal = document.getElementById('telas-team-modal');
+        modal.classList.remove('hidden');
+        requestAnimationFrame(() => { modal.style.opacity = '1'; });
+        loadTeamList();
+    };
+    window.closeTeamModal = function() {
+        const modal = document.getElementById('telas-team-modal');
+        modal.style.opacity = '0';
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+            window.location.href = '/index.html';
+            return;
+        }
+
+        // Detectar role
+        const badge = document.getElementById('user-role-badge');
+        const btnTeam = document.getElementById('btn-team');
+
+        if (user.isAnonymous) {
+            badge.textContent = 'Visitante';
+            badge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-white shadow-sm whitespace-nowrap text-emerald-600 border-emerald-200';
+            window.currentUserRole = 'visitante';
+        } else {
+            try {
+                const token = await user.getIdTokenResult();
+                const claims = token && token.claims ? token.claims : {};
+                const isEmployee = claims.role === 'employee' || String(claims.matricula || '').trim() !== '';
+                window.currentUserMatricula = String(claims.matricula || '').trim();
+                if (isEmployee) {
+                    badge.textContent = 'Colaborador';
+                    badge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-white shadow-sm whitespace-nowrap text-blue-600 border-blue-200';
+                    window.currentUserRole = 'colaborador';
+                } else {
+                    badge.textContent = 'Administrador';
+                    badge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-white shadow-sm whitespace-nowrap text-[#e41e26] border-[#e41e26]/20';
+                    if (btnTeam) btnTeam.classList.remove('hidden');
+                    window.currentUserRole = 'admin';
+                }
+            } catch(e) {
+                badge.textContent = 'Colaborador';
+                badge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-white shadow-sm whitespace-nowrap text-blue-600 border-blue-200';
+                window.currentUserRole = 'colaborador';
+            }
+        }
+
+        // Carregar colaboradores para autocomplete funcionar
+        loadTeamList();
+
+        // Iniciar 3D e fade out loading
+        const loadingEl = document.getElementById('auth-loading');
+        if (typeof init3D === 'function') init3D();
+        setTimeout(() => {
+            loadingEl.classList.add('fade-out');
+            setTimeout(() => { loadingEl.classList.add('hidden'); }, 500);
+        }, 300);
+    });
+    </script>
+
+    <script>
+        let scene, camera, renderer, raycaster, mouse, controls;
+        let edges = {};
+        let currentSelectedEdge = null;
+        let activeHudSprite = null;
+        let activeFlyingLabel = null;
+
+        let solids = [];
+        let wireframes = [];
+        let hudLabels = [];
+        let explosions = [];
+        let floorMirror, epoxyPlane;
+
+        let totalScreens = 36;
+        const clock = new THREE.Clock();
+        const globalUniforms = { time: { value: 0.0 } };
+
+        let isFPSMode = false;
+        let isInsideWarehouse = true;
+        const keyState = { forward: false, backward: false, left: false, right: false };
+        const joyState = { x: 0, y: 0 };
+        let fpsSpeed = 0.08;
+
+        function updateDate() {
+            const days = ['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO'];
+            const today = new Date();
+            const dayName = days[today.getDay()];
+            const day = String(today.getDate()).padStart(2, '0');
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            document.getElementById('dynamic-date').innerText = `${dayName}, ${day}/${month}`;
+        }
+
+        function createExplosion(position) {
+            const particleCount = 400;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const velocities = [];
+
+            const colorOptions = [
+                new THREE.Color('#4ade80'), new THREE.Color('#22c55e'),
+                new THREE.Color('#facc15'), new THREE.Color('#ffffff')
+            ];
+
+            for (let i = 0; i < particleCount; i++) {
+                positions[i*3] = position.x;
+                positions[i*3+1] = position.y;
+                positions[i*3+2] = position.z;
+
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                const speed = (Math.random() * 8) + 2;
+
+                velocities.push({
+                    x: Math.sin(phi) * Math.cos(theta) * speed,
+                    y: Math.cos(phi) * speed + 5,
+                    z: Math.sin(phi) * Math.sin(theta) * speed
+                });
+
+                const color = colorOptions[Math.floor(Math.random() * colorOptions.length)];
+                colors[i*3] = color.r; colors[i*3+1] = color.g; colors[i*3+2] = color.b;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const context = canvas.getContext('2d');
+
+            const gradient = context.createRadialGradient(8, 8, 0, 8, 8, 8);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 16, 16);
+            const tex = new THREE.CanvasTexture(canvas);
+
+            const material = new THREE.PointsMaterial({
+                size: 0.4, map: tex, transparent: true, opacity: 1,
+                vertexColors: true, depthWrite: false, blending: THREE.AdditiveBlending
+            });
+
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            explosions.push({ mesh: particles, velocities: velocities, life: 1.0 });
+        }
+
+        function createGridTexture() {
+            const size = 5;
+            const data = new Uint8Array(size * size * 4);
+            // Inicializa tudo vermelho
+            for (let i = 0; i < size * size; i++) {
+                data[i * 4]     = 239; // R
+                data[i * 4 + 1] = 68;  // G
+                data[i * 4 + 2] = 68;  // B
+                data[i * 4 + 3] = 255; // A
+            }
+            const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+            tex.magFilter = THREE.NearestFilter;
+            tex.minFilter = THREE.NearestFilter;
+            tex.needsUpdate = true;
+            return { texture: tex, data: data };
+        }
+
+        // Converte índice do popup (topo-esquerdo) para índice da textura (fundo-esquerdo)
+        function popupToTexIndex(i) {
+            const row = Math.floor(i / 5);
+            const col = i % 5;
+            return (4 - row) * 5 + col;
+        }
+
+        function updateGridCell(mesh, cellIndex, filled) {
+            if (!mesh.userData.gridData) return;
+            const texIdx = popupToTexIndex(cellIndex);
+            const data = mesh.userData.gridData;
+            if (filled) {
+                data[texIdx * 4]     = 34;  // R green
+                data[texIdx * 4 + 1] = 197; // G
+                data[texIdx * 4 + 2] = 94;  // B
+            } else {
+                data[texIdx * 4]     = 239; // R red
+                data[texIdx * 4 + 1] = 68;  // G
+                data[texIdx * 4 + 2] = 68;  // B
+            }
+            mesh.userData.gridTexture.needsUpdate = true;
+        }
+
+        function createProgressMaterial(wallLength) {
+            const grid = createGridTexture();
+            const mat = new THREE.MeshStandardMaterial({
+                roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0
+            });
+            mat.userData = {
+                progress: { value: 0.0 },
+                gridTex: grid.texture,
+                gridData: grid.data
+            };
+            mat.onBeforeCompile = (shader) => {
+                shader.uniforms.progress = mat.userData.progress;
+                shader.uniforms.wallLength = { value: wallLength };
+                shader.uniforms.time = globalUniforms.time;
+                shader.uniforms.gridMap = { value: grid.texture };
+
+                shader.vertexShader = `
+                    varying vec3 vLocalPos;
+                    varying vec2 vGridUV;
+                    ${shader.vertexShader}
+                `.replace(`#include <begin_vertex>`, `
+                    #include <begin_vertex>
+                    vLocalPos = position;
+                    vGridUV = vec2((position.x / ${wallLength.toFixed(2)}) + 0.5, position.y + 0.5);
+                `);
+
+                shader.fragmentShader = `
+                    uniform float progress;
+                    uniform float wallLength;
+                    uniform float time;
+                    uniform sampler2D gridMap;
+                    varying vec3 vLocalPos;
+                    varying vec2 vGridUV;
+                    ${shader.fragmentShader}
+                `.replace(
+                    `vec4 diffuseColor = vec4( diffuse, opacity );`,
+                    `
+                    vec4 gridSample = texture2D(gridMap, vGridUV);
+                    vec3 finalColor = gridSample.rgb;
+                    // Linha de grade sutil entre células
+                    vec2 cellPos = fract(vGridUV * 5.0);
+                    float gridLine = step(0.06, cellPos.x) * step(0.06, cellPos.y) * step(cellPos.x, 0.94) * step(cellPos.y, 0.94);
+                    finalColor = mix(finalColor * 0.7, finalColor, gridLine);
+                    vec4 diffuseColor = vec4( finalColor, opacity );
+                    `
+                ).replace(`vec3 totalEmissiveRadiance = emissive;`, `vec3 totalEmissiveRadiance = finalColor * 0.2;`);
+            };
+            return mat;
+        }
+
+        function createHUDLabel(text) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 128; canvas.height = 128;
+            const num = text.replace('TELA ', '');
+
+            context.shadowColor = 'rgba(0,0,0,0.3)'; context.shadowBlur = 15;
+            context.shadowOffsetX = 0; context.shadowOffsetY = 6;
+            context.beginPath(); context.arc(64, 64, 38, 0, Math.PI * 2);
+            context.fillStyle = '#1e293b'; context.fill();
+
+            context.shadowColor = 'transparent';
+            context.beginPath(); context.arc(64, 64, 34, 0, Math.PI * 2);
+            context.lineWidth = 2; context.strokeStyle = 'rgba(255, 255, 255, 0.15)'; context.stroke();
+
+            context.font = "800 32px 'Inter', sans-serif"; context.fillStyle = "#ffffff";
+            context.textAlign = "center"; context.textBaseline = "middle";
+            context.fillText(num, 64, 66);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, opacity: 0 });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(1.6, 1.6, 1); sprite.renderOrder = 999;
+            return sprite;
+        }
+
+        function init3D() {
+            updateDate();
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 30, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.1;
+            controls.enabled = false; controls.enableZoom = false;
+
+            raycaster = new THREE.Raycaster(); mouse = new THREE.Vector2();
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(5, 10, 7); scene.add(directionalLight);
+
+            const floorShape = new THREE.Shape();
+            floorShape.moveTo( 3.925, -4.925);
+            floorShape.lineTo( 3.925,  4.925);
+            floorShape.lineTo(-3.925,  4.925);
+            floorShape.lineTo(-3.925, -0.925);
+            floorShape.lineTo(-1.925, -0.925);
+            floorShape.lineTo(-1.925, -4.925);
+            floorShape.lineTo( 3.925, -4.925);
+
+            const floorGeo = new THREE.ShapeGeometry(floorShape);
+
+            floorMirror = new THREE.Reflector(floorGeo, {
+                clipBias: 0.003, textureWidth: window.innerWidth / 2, textureHeight: window.innerHeight / 2, color: 0xcccccc
+            });
+            floorMirror.rotation.x = Math.PI / 2;
+            floorMirror.position.y = -0.5; floorMirror.visible = false;
+            scene.add(floorMirror);
+
+            const epoxyMat = new THREE.MeshStandardMaterial({
+                color: 0xf8fafc, transparent: true, opacity: 0, roughness: 0.1, metalness: 0.1
+            });
+            epoxyPlane = new THREE.Mesh(floorGeo, epoxyMat);
+            epoxyPlane.rotation.x = Math.PI / 2;
+            epoxyPlane.position.y = -0.499;
+            scene.add(epoxyPlane);
+
+            const segments = [
+                { id: 'TELA 01', x: -3, z: 5, rot: 0 }, { id: 'TELA 02', x: -1, z: 5, rot: 0 },
+                { id: 'TELA 03', x: 1, z: 5, rot: 0 }, { id: 'TELA 04', x: 3, z: 5, rot: 0 },
+                { id: 'TELA 05', x: 4, z: 4, rot: Math.PI/2 }, { id: 'TELA 06', x: 4, z: 2, rot: Math.PI/2 },
+                { id: 'TELA 07', x: 4, z: 0, rot: Math.PI/2 }, { id: 'TELA 08', x: 4, z: -2, rot: Math.PI/2 },
+                { id: 'TELA 09', x: 4, z: -4, rot: Math.PI/2 }, { id: 'TELA 10', x: 3, z: -5, rot: 0 },
+                { id: 'TELA 11', x: 1, z: -5, rot: 0 }, { id: 'TELA 12', x: -1, z: -5, rot: 0 },
+                { id: 'TELA 13', x: -2, z: -4, rot: Math.PI/2 }, { id: 'TELA 14', x: -2, z: -2, rot: Math.PI/2 },
+                { id: 'TELA 15', x: -3, z: -1, rot: 0 }, { id: 'TELA 16', x: -4, z: 0, rot: Math.PI/2 },
+                { id: 'TELA 17', x: -4, z: 2, rot: Math.PI/2 }, { id: 'TELA 18', x: -4, z: 4, rot: Math.PI/2 }
+            ];
+
+            segments.forEach(seg => {
+                createWall(seg.id, [seg.x, 0, seg.z], seg.rot, [1.9, 1.0, 0.15]);
+            });
+
+            window.addEventListener('pointerup', onDocumentPointerUp, false);
+            window.addEventListener('pointermove', onPointerMove, false);
+            document.addEventListener('touchmove', function(e) {
+                if(e.scale !== 1 && e.target.id !== 'joystick-zone') { e.preventDefault(); }
+            }, { passive: false });
+            window.addEventListener('resize', onWindowResize, false);
+
+            setupSliderEvents(); setupMagneticButton(); setupFPSControls(); renderWeekCalendar();
+            playCinematicIntro(); animate();
+        }
+
+        function createWall(id, pos, rotationY, size) {
+            const [length, height, fullThickness] = size;
+            const group = new THREE.Group();
+            group.position.set(pos[0], pos[1], pos[2]);
+            group.rotation.y = rotationY;
+
+            const plateThickness = (fullThickness / 2) * 0.8;
+            const offsetZ = fullThickness / 4;
+            const geo = new THREE.BoxGeometry(length, height, plateThickness);
+
+            const mesh1 = new THREE.Mesh(geo, createProgressMaterial(length));
+            mesh1.position.z = offsetZ; mesh1.userData = { progressValue: 0, gridTexture: mesh1.material.userData.gridTex, gridData: mesh1.material.userData.gridData, filledCells: new Array(25).fill(false) };
+            group.add(mesh1);
+
+            const mesh2 = new THREE.Mesh(geo, createProgressMaterial(length));
+            mesh2.position.z = -offsetZ; mesh2.userData = { progressValue: 0, gridTexture: mesh2.material.userData.gridTex, gridData: mesh2.material.userData.gridData, filledCells: new Array(25).fill(false) };
+            group.add(mesh2);
+            solids.push(mesh1, mesh2);
+
+            const wireMat = new THREE.LineBasicMaterial({ color: 0xff3333, transparent: true, opacity: 0 });
+            const edgesGeo = new THREE.EdgesGeometry(geo);
+            const wire1 = new THREE.LineSegments(edgesGeo, wireMat); wire1.position.z = offsetZ;
+            const wire2 = new THREE.LineSegments(edgesGeo, wireMat); wire2.position.z = -offsetZ;
+
+            group.add(wire1, wire2); wireframes.push(wire1, wire2);
+            group.updateMatrixWorld(true);
+            const pos1 = new THREE.Vector3(); mesh1.getWorldPosition(pos1);
+            const pos2 = new THREE.Vector3(); mesh2.getWorldPosition(pos2);
+
+            if (pos1.lengthSq() < pos2.lengthSq()) {
+                mesh1.userData.id = id + ' (INTERNA)'; mesh2.userData.id = id + ' (EXTERNA)';
+            } else {
+                mesh2.userData.id = id + ' (INTERNA)'; mesh1.userData.id = id + ' (EXTERNA)';
+            }
+
+            const hudLabel = createHUDLabel(id);
+            hudLabel.position.set(0, (height / 2) + 0.3, 0);
+            group.add(hudLabel); hudLabels.push(hudLabel);
+            mesh1.userData.hudLabel = hudLabel; mesh2.userData.hudLabel = hudLabel;
+
+            scene.add(group);
+            mesh1.userData.originalY = mesh1.position.y;
+            mesh2.userData.originalY = mesh2.position.y;
+            edges[mesh1.userData.id] = mesh1; edges[mesh2.userData.id] = mesh2;
+        }
+
+        function toggleFPSMode() {
+            if (!document.getElementById('canvas-container').classList.contains('ready')) return;
+
+            isFPSMode = !isFPSMode;
+            const mainUi = document.getElementById('main-ui');
+            const fpsUi = document.getElementById('fps-ui');
+            const joystick = document.getElementById('joystick-zone');
+            const isMobile = window.innerWidth < 768;
+
+            if (isFPSMode) {
+                mainUi.style.opacity = '0';
+                mainUi.style.pointerEvents = 'none';
+                document.getElementById('telas-header').style.opacity = '0';
+                document.getElementById('telas-header').style.pointerEvents = 'none';
+                fpsUi.classList.remove('hidden'); fpsUi.classList.add('flex');
+                if (isMobile) { joystick.classList.remove('hidden'); joystick.classList.add('flex'); }
+
+                isInsideWarehouse = true;
+                document.getElementById('btn-teleport').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg><span>SAIR DO ARMAZÉM</span>`;
+                document.getElementById('instruction-container').style.opacity = '0';
+
+                gsap.to(camera.position, { x: 0, y: 0.5, z: 0, duration: 1.5, ease: "power3.inOut" });
+
+                const forward = new THREE.Vector3();
+                camera.getWorldDirection(forward);
+                gsap.to(controls.target, { x: forward.x * 0.1, y: 0.5, z: forward.z * 0.1, duration: 1.5, ease: "power3.inOut" });
+            } else {
+                fpsUi.classList.add('hidden'); fpsUi.classList.remove('flex');
+                joystick.classList.add('hidden'); joystick.classList.remove('flex');
+                mainUi.style.opacity = '1';
+                mainUi.style.pointerEvents = 'auto';
+                document.getElementById('telas-header').style.opacity = '1';
+                document.getElementById('telas-header').style.pointerEvents = 'auto';
+                document.getElementById('instruction-container').style.opacity = '1';
+
+                const targetCamY = isMobile ? 18 : 10;
+                const targetCamZ = isMobile ? 18 : 12;
+                gsap.to(camera.position, { x: 0, y: targetCamY, z: targetCamZ, duration: 1.5, ease: "power3.inOut" });
+                gsap.to(controls.target, { x: 0, y: 0, z: 0, duration: 1.5, ease: "power3.inOut" });
+            }
+        }
+
+        function teleportFPS() {
+            if(!isFPSMode) return;
+            isInsideWarehouse = !isInsideWarehouse;
+            const btn = document.getElementById('btn-teleport');
+
+            if (isInsideWarehouse) {
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg><span>SAIR DO ARMAZÉM</span>`;
+                gsap.to(camera.position, { x: 0, y: 0.5, z: 0, duration: 1 });
+                gsap.to(controls.target, { x: 0, y: 0.5, z: -1, duration: 1 });
+            } else {
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg><span>ENTRAR NO ARMAZÉM</span>`;
+                gsap.to(camera.position, { x: 0, y: 0.5, z: 8, duration: 1 });
+                gsap.to(controls.target, { x: 0, y: 0.5, z: 0, duration: 1 });
+            }
+        }
+
+        function checkCollision(newX, newZ) {
+            const limit = 15;
+            if (newX < -limit || newX > limit || newZ < -limit || newZ > limit) return true;
+
+            const isInsideBox = (newX > -3.8 && newX < 3.8 && newZ > -4.8 && newZ < 4.8);
+            const inCutout = (newX < -1.8 && newZ < -0.8);
+            const isActuallyInside = isInsideBox && !inCutout;
+
+            if (isInsideWarehouse) {
+                return !isActuallyInside;
+            } else {
+                const outerBox = (newX > -4.2 && newX < 4.2 && newZ > -5.2 && newZ < 5.2);
+                const outerCutout = (newX < -2.2 && newZ < -1.2);
+                const isTouchingOuterWalls = outerBox && !outerCutout;
+                return isTouchingOuterWalls;
+            }
+        }
+
+        function setupFPSControls() {
+            document.addEventListener('keydown', (e) => {
+                if (!isFPSMode) return;
+                switch (e.code) {
+                    case 'KeyW': case 'ArrowUp': keyState.forward = true; break;
+                    case 'KeyS': case 'ArrowDown': keyState.backward = true; break;
+                    case 'KeyA': case 'ArrowLeft': keyState.left = true; break;
+                    case 'KeyD': case 'ArrowRight': keyState.right = true; break;
+                }
+            });
+            document.addEventListener('keyup', (e) => {
+                switch (e.code) {
+                    case 'KeyW': case 'ArrowUp': keyState.forward = false; break;
+                    case 'KeyS': case 'ArrowDown': keyState.backward = false; break;
+                    case 'KeyA': case 'ArrowLeft': keyState.left = false; break;
+                    case 'KeyD': case 'ArrowRight': keyState.right = false; break;
+                }
+            });
+
+            const zone = document.getElementById('joystick-zone');
+            const knob = document.getElementById('joystick-knob');
+            let joyActive = false; let joyCenter = { x: 0, y: 0 };
+
+            zone.addEventListener('touchstart', (e) => {
+                e.preventDefault(); e.stopPropagation(); joyActive = true;
+                const rect = zone.getBoundingClientRect();
+                joyCenter.x = rect.left + rect.width / 2; joyCenter.y = rect.top + rect.height / 2;
+                updateJoy(e.touches[0]);
+            }, {passive: false});
+
+            zone.addEventListener('touchmove', (e) => {
+                e.preventDefault(); e.stopPropagation(); if (!joyActive) return;
+                updateJoy(e.touches[0]);
+            }, {passive: false});
+
+            zone.addEventListener('touchend', (e) => {
+                e.preventDefault(); e.stopPropagation(); joyActive = false;
+                joyState.x = 0; joyState.y = 0; gsap.to(knob, {x: 0, y: 0, duration: 0.2});
+            }, {passive: false});
+
+            function updateJoy(touch) {
+                const dx = touch.clientX - joyCenter.x; const dy = touch.clientY - joyCenter.y;
+                const maxRadius = 30; const distance = Math.min(Math.sqrt(dx*dx + dy*dy), maxRadius);
+                const angle = Math.atan2(dy, dx);
+                const knobX = Math.cos(angle) * distance; const knobY = Math.sin(angle) * distance;
+                gsap.set(knob, {x: knobX, y: knobY});
+                joyState.x = knobX / maxRadius; joyState.y = -knobY / maxRadius;
+            }
+        }
+
+        function handleFPSMovement() {
+            if (!isFPSMode) return;
+            let moveX = 0; let moveZ = 0;
+            if (keyState.forward) moveZ += 1; if (keyState.backward) moveZ -= 1;
+            if (keyState.left) moveX -= 1; if (keyState.right) moveX += 1;
+            moveX += joyState.x; moveZ += joyState.y;
+
+            if (moveX !== 0 || moveZ !== 0) {
+                const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+                dir.y = 0; dir.normalize();
+                const right = new THREE.Vector3(); right.crossVectors(dir, camera.up).normalize();
+
+                const delta = new THREE.Vector3();
+                delta.addScaledVector(dir, moveZ * fpsSpeed);
+                delta.addScaledVector(right, moveX * fpsSpeed);
+
+                const nextX = camera.position.x + delta.x;
+                const nextZ = camera.position.z + delta.z;
+
+                if (!checkCollision(nextX, nextZ)) {
+                    camera.position.x = nextX; camera.position.z = nextZ;
+                    controls.target.x += delta.x; controls.target.z += delta.z;
+                } else {
+                    if (!checkCollision(nextX, camera.position.z)) {
+                        camera.position.x = nextX; controls.target.x += delta.x;
+                    } else if (!checkCollision(camera.position.x, nextZ)) {
+                        camera.position.z = nextZ; controls.target.z += delta.z;
+                    }
+                }
+            }
+        }
+
+        function playCinematicIntro() {
+            const isMobile = window.innerWidth < 768;
+            const targetCamY = isMobile ? 18 : 10;
+            const targetCamZ = isMobile ? 18 : 12;
+
+            const tl = gsap.timeline({
+                onComplete: () => {
+                    controls.enabled = true; controls.enablePan = !isMobile;
+                    document.getElementById('canvas-container').classList.add('ready');
+                    document.querySelectorAll('.ui-element').forEach(el => el.style.opacity = '1');
+                }
+            });
+
+            tl.to(wireframes.map(w => w.material), { opacity: 1, duration: 0.05, stagger: 0.03, ease: "none" }, "+=0.3");
+            tl.to({}, { duration: 0.4 });
+            tl.to(camera.position, { x: 0, y: targetCamY, z: targetCamZ, duration: 2.2, ease: "power3.inOut", onUpdate: () => { camera.lookAt(0, 0, 0); } }, "flyIn");
+            tl.to(wireframes.map(w => w.material), { opacity: 0, duration: 0.8 }, "flyIn+=1.2");
+            tl.to(solids.map(s => s.material), { opacity: 1, duration: 0.8 }, "flyIn+=1.2");
+            tl.to(hudLabels.map(l => l.material), { opacity: 1, duration: 0.8 }, "flyIn+=1.2");
+            tl.to(epoxyPlane.material, { opacity: 0.8, duration: 0.8 }, "flyIn+=1.2");
+
+            tl.call(() => { wireframes.forEach(w => w.visible = false); if(floorMirror) floorMirror.visible = true; }, [], "flyIn+=1.2");
+            tl.to(".ui-element", { opacity: 1, duration: 1, stagger: 0.15, ease: "power2.out" }, "-=0.3");
+        }
+
+        let pointerDownPos = new THREE.Vector2(); let hoveredEdge = null;
+        window.addEventListener('pointerdown', (event) => { pointerDownPos.x = event.clientX; pointerDownPos.y = event.clientY; });
+
+        function onPointerMove(event) {
+            if (isDraggingModal || !controls.enabled) return;
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1; mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(Object.values(edges));
+
+            if (intersects.length > 0) {
+                document.getElementById('canvas-container').style.cursor = 'pointer';
+                const object = intersects[0].object;
+                if (hoveredEdge !== object) {
+                    if (hoveredEdge) hoveredEdge.material.emissiveIntensity = 0.15;
+                    hoveredEdge = object; hoveredEdge.material.emissiveIntensity = 0.6;
+                }
+            } else {
+                if(document.getElementById('canvas-container').classList.contains('ready')) { document.getElementById('canvas-container').style.cursor = isFPSMode ? 'default' : 'grab'; }
+                if (hoveredEdge) { hoveredEdge.material.emissiveIntensity = 0.15; hoveredEdge = null; }
+            }
+        }
+
+        function onDocumentPointerUp(event) {
+            if (!controls.enabled) return;
+            if (event.target.closest('#modal') || event.target.closest('button') || event.target.closest('#joystick-zone')) return;
+
+            const moveX = Math.abs(event.clientX - pointerDownPos.x); const moveY = Math.abs(event.clientY - pointerDownPos.y);
+            if (moveX > 10 || moveY > 10) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1; mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(Object.values(edges));
+
+            if (intersects.length > 0) {
+                const clickedEdge = intersects[0].object;
+
+                if (isFPSMode) {
+                    const isInternalWall = clickedEdge.userData.id.includes('(INTERNA)');
+                    if (isInsideWarehouse && !isInternalWall) return;
+                    if (!isInsideWarehouse && isInternalWall) return;
+                }
+
+                if (currentSelectedEdge && currentSelectedEdge !== clickedEdge.userData.id) {
+                    const prevMesh = edges[currentSelectedEdge];
+                    const savedProgress = prevMesh.userData.progressValue || 0;
+                    prevMesh.material.userData.progress.value = savedProgress / 100.0;
+                }
+                openValidationModal(clickedEdge.userData.id);
+            } else if (currentSelectedEdge) {
+                closeModal(false);
+            }
+        }
+
+        // Telas que devem pulsar (atribuídas para hoje)
+        let pulsatingEdges = new Set();
+
+        function updatePulsatingTelas() {
+            pulsatingEdges.clear();
+            const todayKey = telasLocalDateKey(new Date());
+            const todayTasks = dayTasks[todayKey] || [];
+            todayTasks.forEach(task => {
+                // task.title = "TELA 01 (INTERNA)" ou "TELA 01 (EXTERNA)"
+                if (edges[task.title]) {
+                    pulsatingEdges.add(task.title);
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (controls && controls.enabled) { controls.update(); handleFPSMovement(); }
+            const time = clock.getElapsedTime();
+            globalUniforms.time.value = time;
+
+            // Pulsar telas atribuídas para hoje (só pra cima)
+            if (pulsatingEdges.size > 0) {
+                const bounce = Math.abs(Math.sin(time * 3)) * 0.2;
+                pulsatingEdges.forEach(edgeId => {
+                    const mesh = edges[edgeId];
+                    if (mesh) {
+                        mesh.position.y = (mesh.userData.originalY || 0) + bounce;
+                    }
+                });
+            }
+
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                let exp = explosions[i];
+                let positions = exp.mesh.geometry.attributes.position.array;
+                for(let j=0; j < positions.length/3; j++) {
+                    positions[j*3] += exp.velocities[j].x * 0.016; positions[j*3+1] += exp.velocities[j].y * 0.016; positions[j*3+2] += exp.velocities[j].z * 0.016;
+                    exp.velocities[j].x *= 0.96; exp.velocities[j].z *= 0.96; exp.velocities[j].y -= 0.04;
+                }
+                exp.mesh.geometry.attributes.position.needsUpdate = true;
+                exp.life -= 0.004; exp.mesh.material.opacity = exp.life;
+                if (exp.life <= 0) { scene.remove(exp.mesh); explosions.splice(i, 1); }
+            }
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+            if(floorMirror) { floorMirror.getRenderTarget().setSize( window.innerWidth / 2, window.innerHeight / 2 ); }
+        }
+
+        // ─── GRID 5x5 DE TELA ───
+        const TELA_CELLS = 25; // 5x5
+        let telaGridCells = [];
+        let isDraggingGrid = false;
+
+        function setupSliderEvents() {
+            // Criar grid 5x5
+            const grid = document.getElementById('tela-grid');
+            grid.innerHTML = '';
+            telaGridCells = [];
+            for (let i = 0; i < TELA_CELLS; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'tela-cell';
+                cell.dataset.index = i;
+
+                // Click para toggle
+                cell.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    isDraggingGrid = true;
+                    toggleTelaCell(i);
+                });
+                cell.addEventListener('pointerenter', (e) => {
+                    if (isDraggingGrid) toggleTelaCell(i, true);
+                });
+
+                grid.appendChild(cell);
+                telaGridCells.push(cell);
+            }
+
+            document.addEventListener('pointerup', () => { isDraggingGrid = false; });
+        }
+
+        const RESET_DAYS = 7; // Após 7 dias, tela volta ao vermelho
+
+        function isUserAssignedToCurrentTela() {
+            if (!currentSelectedEdge) return false;
+            const todayKey = telasLocalDateKey(new Date());
+            const todayTasks = dayTasks[todayKey] || [];
+            const task = todayTasks.find(t => t.title === currentSelectedEdge);
+            if (!task) return false;
+            // Checar se o nome do usuário está nos collabs
+            const userName = window.currentUserName || '';
+            return task.collabs.some(c => c === userName);
+        }
+
+        function canUserPaint() {
+            if (window.currentUserRole === 'admin') return true;
+            if (window.currentUserRole === 'visitante') return false;
+            // Colaborador: só pode pintar se estiver atribuído
+            return isUserAssignedToCurrentTela();
+        }
+
+        function toggleTelaCell(index, dragMode) {
+            const cell = telaGridCells[index];
+            if (!cell || cell.classList.contains('locked')) return; // Travado não pode desmarcar
+
+            // Verificar permissão de pintar
+            if (!canUserPaint()) return;
+
+            if (dragMode) {
+                if (!cell.classList.contains('filled')) {
+                    cell.classList.add('filled', 'just-filled');
+                    setTimeout(() => cell.classList.remove('just-filled'), 300);
+                }
+            } else {
+                if (cell.classList.contains('filled')) {
+                    cell.classList.remove('filled');
+                } else {
+                    cell.classList.add('filled', 'just-filled');
+                    setTimeout(() => cell.classList.remove('just-filled'), 300);
+                }
+            }
+
+            // Atualizar mesh 3D em tempo real (visual)
+            if (currentSelectedEdge && edges[currentSelectedEdge]) {
+                const mesh = edges[currentSelectedEdge];
+                if (mesh.userData.filledCells) {
+                    mesh.userData.filledCells[index] = cell.classList.contains('filled') || cell.classList.contains('locked');
+                    updateGridCell(mesh, index, mesh.userData.filledCells[index]);
+                }
+            }
+            updateTelaProgress();
+        }
+
+        function updateTelaProgress() {
+            const filledCount = telaGridCells.filter(c => c.classList.contains('filled') || c.classList.contains('locked')).length;
+            const pct = Math.round((filledCount / TELA_CELLS) * 100);
+
+            document.getElementById('modal-progress-text').innerText = pct + '%';
+            document.getElementById('modal-slider').value = pct;
+
+            const textEl = document.getElementById('modal-progress-text');
+            if (pct === 100) textEl.style.color = '#22c55e';
+            else if (pct >= 50) textEl.style.color = '#f59e0b';
+            else if (pct > 0) textEl.style.color = '#ef4444';
+            else textEl.style.color = '#22c55e';
+
+            // Botão dinâmico
+            const btnText = document.getElementById('btn-text');
+            if (pct === 100) btnText.innerHTML = 'CONCLUIR LIMPEZA';
+            else if (pct > 0) btnText.innerHTML = 'SALVAR PROGRESSO';
+            else btnText.innerHTML = 'CONCLUIR LIMPEZA';
+
+            if (currentSelectedEdge && edges[currentSelectedEdge]) {
+                edges[currentSelectedEdge].material.userData.progress.value = pct / 100.0;
+            }
+        }
+
+        function checkResetTela(mesh) {
+            // Se a última conclusão foi há mais de 7 dias, resetar
+            const history = mesh.userData.cleanHistory || [];
+            if (history.length === 0) return;
+            const lastEntry = history[history.length - 1];
+            const lastDate = new Date(lastEntry.date);
+            const now = new Date();
+            const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+            if (diffDays >= RESET_DAYS) {
+                // Reset: tudo volta ao vermelho
+                mesh.userData.filledCells = new Array(25).fill(false);
+                mesh.userData.savedCells = new Array(25).fill(false);
+                mesh.userData.progressValue = 0;
+                mesh.userData.photoUrl = null;
+                // Atualizar textura 3D
+                for (let i = 0; i < 25; i++) updateGridCell(mesh, i, false);
+            }
+        }
+
+        function setTelaGridFromMesh(mesh) {
+            // Verificar reset por tempo
+            checkResetTela(mesh);
+
+            const savedCells = mesh.userData.savedCells || new Array(25).fill(false);
+            const currentCells = mesh.userData.filledCells || new Array(25).fill(false);
+
+            telaGridCells.forEach((cell, i) => {
+                cell.classList.remove('filled', 'locked');
+                if (savedCells[i]) {
+                    // Quadrado já salvo — travado, não pode desmarcar
+                    cell.classList.add('locked');
+                } else if (currentCells[i]) {
+                    cell.classList.add('filled');
+                }
+                updateGridCell(mesh, i, savedCells[i] || currentCells[i]);
+            });
+
+            const total = telaGridCells.filter(c => c.classList.contains('filled') || c.classList.contains('locked')).length;
+            const pct = Math.round((total / TELA_CELLS) * 100);
+            const textEl = document.getElementById('modal-progress-text');
+            textEl.innerText = pct + '%';
+            if (pct === 100) textEl.style.color = '#22c55e';
+            else if (pct >= 50) textEl.style.color = '#f59e0b';
+            else if (pct > 0) textEl.style.color = '#ef4444';
+            else textEl.style.color = '#22c55e';
+
+            // Botão dinâmico
+            const btnText = document.getElementById('btn-text');
+            if (pct === 100) btnText.innerHTML = 'CONCLUIR LIMPEZA';
+            else if (pct > 0) btnText.innerHTML = 'SALVAR PROGRESSO';
+            else btnText.innerHTML = 'CONCLUIR LIMPEZA';
+
+            // Renderizar histórico
+            renderCleaningHistory(mesh);
+        }
+
+        function renderMiniGrid(snapshot) {
+            if (!snapshot) return '';
+            let cells = '';
+            for (let i = 0; i < 25; i++) {
+                const color = snapshot[i] ? '#4ade80' : '#fecaca';
+                cells += `<div style="background:${color};border-radius:1px;${snapshot[i] ? 'box-shadow:inset 0 0 0 0.5px rgba(255,255,255,0.3)' : ''}"></div>`;
+            }
+            return `
+            <div style="display:inline-grid;grid-template-columns:repeat(5,1fr);gap:1px;width:48px;height:40px;padding:2px;background:#cbd5e1;border-radius:4px;border:2px solid #94a3b8;flex-shrink:0;">
+                ${cells}
+            </div>`;
+        }
+
+        function renderCleaningHistory(mesh) {
+            const history = mesh.userData.cleanHistory || [];
+            const container = document.getElementById('cleaning-history');
+            const list = document.getElementById('history-list');
+
+            if (history.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
+            list.innerHTML = history.map((entry, idx) => {
+                const d = new Date(entry.date);
+                const dateStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+                const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                const pctColor = entry.pct === 100 ? '#22c55e' : '#f59e0b';
+
+                return `
+                <div class="bg-white rounded-xl border border-gray-100 p-3 flex gap-3 items-start" style="box-shadow:0 1px 4px rgba(0,0,0,0.03);animation:teamCardIn 300ms ease both;animation-delay:${idx * 60}ms">
+                    ${entry.photo ? `<img src="${entry.photo}" class="w-14 h-14 md:w-16 md:h-16 rounded-xl object-cover flex-shrink-0 border border-gray-200 shadow-sm">` : ''}
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="text-[13px] font-black" style="color:${pctColor}">${entry.pct}%</span>
+                            <span class="text-[9px] text-gray-400 font-bold">${dateStr} ${timeStr}</span>
+                        </div>
+                        ${entry.who ? `<p class="text-[9px] font-bold text-gray-500 truncate mb-1.5">${entry.who}</p>` : ''}
+                        ${renderMiniGrid(entry.gridSnapshot)}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function getAssignedCollabs(edgeId) {
+            // Busca os colaboradores atribuídos para esta tela no dia de hoje
+            const todayKey = telasLocalDateKey(new Date());
+            const todayTasks = dayTasks[todayKey] || [];
+            const task = todayTasks.find(t => t.title === edgeId);
+            return task ? task.collabs : [];
+        }
+
+        function renderModalCollabs(edgeId) {
+            const list = document.getElementById('collaborators-list');
+            const collabs = getAssignedCollabs(edgeId);
+            const noMsg = document.getElementById('no-collab-msg');
+
+            // Limpa tudo exceto o noMsg
+            list.innerHTML = '';
+
+            if (collabs.length === 0) {
+                list.innerHTML = '<p id="no-collab-msg" class="text-[11px] text-gray-400 font-bold text-center py-4">Nenhum responsável atribuído para esta tela hoje</p>';
+                return;
+            }
+
+            collabs.forEach(name => {
+                const u = window.telasTeamData.find(t => t.nome === name);
+                const initial = name.charAt(0);
+                const avatar = (u && u.photo)
+                    ? `<img src="${u.photo}" class="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border-2 border-white mr-3 md:mr-4" style="box-shadow:0 2px 8px rgba(0,0,0,0.08)">`
+                    : `<div class="w-8 h-8 md:w-10 md:h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-black mr-3 md:mr-4 shadow-sm md:shadow-md text-sm md:text-base">${initial}</div>`;
+                const funcao = (u && u.funcao) ? u.funcao : 'COLABORADOR';
+
+                const div = document.createElement('div');
+                div.className = 'flex items-center p-3 md:p-4 border-2 border-gray-100 rounded-2xl bg-white';
+                div.innerHTML = `
+                    ${avatar}
+                    <div class="min-w-0">
+                        <span class="font-bold text-sm md:text-base text-gray-700 block truncate">${name}</span>
+                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">${funcao}</span>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function openValidationModal(edgeId) {
+            currentSelectedEdge = edgeId; const mesh = edges[edgeId];
+
+            activeHudSprite = mesh.userData.hudLabel;
+            const vector = new THREE.Vector3(); activeHudSprite.getWorldPosition(vector); vector.project(camera);
+            const startX = (vector.x * .5 + .5) * window.innerWidth; const startY = (vector.y * -.5 + .5) * window.innerHeight;
+            activeHudSprite.visible = false;
+
+            const num = edgeId.replace('TELA ', '').split(' ')[0];
+            const flier = document.createElement('div');
+            flier.className = 'fixed bg-slate-800 text-white flex items-center justify-center font-black z-[9999] shadow-2xl overflow-hidden';
+            flier.style.width = '76px'; flier.style.height = '76px'; flier.style.borderRadius = '50%';
+            flier.style.left = (startX - 38) + 'px'; flier.style.top = (startY - 38) + 'px'; flier.style.fontSize = '32px'; flier.innerText = num;
+            document.body.appendChild(flier); activeFlyingLabel = flier;
+
+            const modal = document.getElementById('modal'); document.getElementById('modal-title').innerText = edgeId;
+            setTelaGridFromMesh(mesh);
+
+            const photoPreview = document.getElementById('photo-preview'); const previewImg = document.getElementById('preview-img');
+            document.getElementById('photo-input').value = '';
+            if (mesh.userData.photoUrl) { previewImg.src = mesh.userData.photoUrl; photoPreview.classList.remove('hidden'); }
+            else { previewImg.src = ''; photoPreview.classList.add('hidden'); }
+
+            // Carregar colaboradores atribuídos dinamicamente
+            renderModalCollabs(edgeId);
+
+            // Aviso de foto
+            document.getElementById('photo-warning').classList.add('hidden');
+
+            document.getElementById('observation-input').value = mesh.userData.observation || '';
+
+            // ─── CONTROLE DE PERMISSÕES DO MODAL ───
+            const canPaint = canUserPaint();
+            const isVisitor = window.currentUserRole === 'visitante';
+            const isColabNotAssigned = window.currentUserRole === 'colaborador' && !isUserAssignedToCurrentTela();
+
+            // Grid: desabilitar interação se não pode pintar
+            const gridEl = document.getElementById('tela-grid');
+            if (!canPaint) {
+                gridEl.style.pointerEvents = 'none';
+                gridEl.style.opacity = '0.7';
+            } else {
+                gridEl.style.pointerEvents = 'auto';
+                gridEl.style.opacity = '1';
+            }
+
+            // Foto, observação e botão concluir
+            const photoSection = document.getElementById('photo-input').closest('section');
+            const obsSection = document.getElementById('observation-input').closest('section');
+            const btnConcluir = document.getElementById('btn-concluir');
+            const btnFooter = btnConcluir.parentElement;
+            const photoWarning = document.getElementById('photo-warning');
+
+            if (isVisitor || isColabNotAssigned) {
+                // Esconder upload de foto e observação e botão
+                if (photoSection) photoSection.style.display = 'none';
+                if (obsSection) obsSection.style.display = 'none';
+                btnFooter.style.display = 'none';
+                photoWarning.classList.add('hidden');
+            } else {
+                if (photoSection) photoSection.style.display = '';
+                if (obsSection) obsSection.style.display = '';
+                btnFooter.style.display = '';
+            }
+
+            modal.style.display = 'flex'; modal.style.opacity = '0'; modal.style.visibility = 'hidden';
+            requestAnimationFrame(() => {
+                modal.style.visibility = 'visible'; const modalRect = modal.getBoundingClientRect(); const isMobile = window.innerWidth < 768;
+                gsap.to(flier, { left: modalRect.left, top: modalRect.top, width: modalRect.width, height: modalRect.height, borderRadius: isMobile ? '24px 24px 0 0' : '0', backgroundColor: 'rgba(255, 255, 255, 0.95)', color: 'transparent', duration: 0.4, ease: "power3.inOut" });
+                gsap.fromTo(modal, { opacity: 0, y: isMobile ? 50 : 0, x: isMobile ? 0 : 50 }, { opacity: 1, y: 0, x: 0, duration: 0.3, delay: 0.25, ease: "power2.out" });
+                setTimeout(() => { if(activeFlyingLabel) activeFlyingLabel.remove(); }, 500);
+            });
+        }
+
+        function closeModal(isSaving = false) {
+            if (!isSaving && currentSelectedEdge) {
+                const mesh = edges[currentSelectedEdge]; const savedProgress = mesh.userData.progressValue || 0;
+                mesh.material.userData.progress.value = savedProgress / 100.0;
+            }
+            const modal = document.getElementById('modal'); const isMobile = window.innerWidth < 768;
+            gsap.to(modal, {
+                y: isMobile ? 100 : 0, x: isMobile ? 0 : 50, opacity: 0, duration: 0.25, ease: "power2.in",
+                onComplete: () => {
+                    modal.style.display = 'none';
+                    if (activeHudSprite) {
+                        activeHudSprite.visible = true; gsap.fromTo(activeHudSprite.scale, {x: 0, y: 0}, {x: 1.6, y: 1.6, duration: 0.5, ease: "back.out(1.5)"}); activeHudSprite = null;
+                    }
+                    currentSelectedEdge = null;
+                }
+            });
+        }
+
+        let isDraggingModal = false;
+
+        function setupMagneticButton() {
+            const btn = document.getElementById('btn-concluir');
+            btn.addEventListener('mousemove', (e) => { const rect = btn.getBoundingClientRect(); const x = (e.clientX - rect.left) - rect.width / 2; const y = (e.clientY - rect.top) - rect.height / 2; gsap.to(btn, { x: x * 0.15, y: y * 0.15, duration: 0.3, ease: "power2.out" }); });
+            btn.addEventListener('mouseleave', () => { gsap.to(btn, { x: 0, y: 0, duration: 0.7, ease: "elastic.out(1.2, 0.4)" }); });
+            btn.addEventListener('mousedown', (e) => {
+                const rect = btn.getBoundingClientRect(); const ripple = document.createElement('span'); ripple.style.position = 'absolute'; ripple.style.backgroundColor = 'rgba(255,255,255,0.4)'; ripple.style.borderRadius = '50%'; ripple.style.pointerEvents = 'none'; ripple.style.transform = 'translate(-50%, -50%)';
+                const size = Math.max(rect.width, rect.height) * 2; ripple.style.width = ripple.style.height = size + 'px'; ripple.style.left = (e.clientX - rect.left) + 'px'; ripple.style.top = (e.clientY - rect.top) + 'px';
+                btn.appendChild(ripple); gsap.fromTo(ripple, {scale: 0, opacity: 1}, {scale: 1, opacity: 0, duration: 0.6, ease: "power2.out", onComplete: () => ripple.remove()});
+            });
+        }
+
+        function updateProgress() {
+            let totalPercentageSum = 0; let fullyCleanedCount = 0;
+            Object.values(edges).forEach(mesh => { const val = mesh.userData.progressValue || 0; totalPercentageSum += val; if (val === 100) fullyCleanedCount++; });
+            const maxPossible = totalScreens * 100; const globalPercentage = Math.round((totalPercentageSum / maxPossible) * 100);
+            document.getElementById('progress-text').innerText = `${fullyCleanedCount}/${totalScreens} (${globalPercentage}%)`;
+            document.getElementById('progress-bar').style.width = `${globalPercentage}%`;
+            const mini = document.getElementById('sidebar-progress-mini');
+            if (mini) mini.textContent = `${fullyCleanedCount}/${totalScreens}`;
+        }
+
+        function confirmCleaning(event) {
+            if (!currentSelectedEdge) return;
+            if (!canUserPaint()) return;
+            const mesh = edges[currentSelectedEdge];
+            const newFilled = telaGridCells.filter(c => c.classList.contains('filled')).length;
+            const lockedCount = telaGridCells.filter(c => c.classList.contains('locked')).length;
+            const totalFilled = newFilled + lockedCount;
+            const sliderVal = Math.round((totalFilled / TELA_CELLS) * 100);
+            const prevVal = mesh.userData.progressValue || 0;
+
+            // Nada novo para salvar
+            if (newFilled === 0) return;
+
+            // Validação para salvar progresso
+            const hasPhoto = !!mesh.userData.photoUrl;
+            const hasObs = (document.getElementById('observation-input').value || '').trim().length > 0;
+            const isAdmin = window.currentUserRole === 'admin';
+
+            if (isAdmin) {
+                // Admin: precisa de foto OU comentário
+                if (!hasPhoto && !hasObs) {
+                    document.getElementById('photo-warning').classList.remove('hidden');
+                    gsap.fromTo('#photo-warning', { scale: 0.95 }, { scale: 1, duration: 0.3, ease: "back.out(2)" });
+                    return;
+                }
+            } else {
+                // Colaborador: foto OBRIGATÓRIA
+                if (!hasPhoto) {
+                    document.getElementById('photo-warning').classList.remove('hidden');
+                    gsap.fromTo('#photo-warning', { scale: 0.95 }, { scale: 1, duration: 0.3, ease: "back.out(2)" });
+                    return;
+                }
+            }
+
+            // Salvar snapshot do grid (locked + filled = estado total neste momento)
+            const gridSnapshot = new Array(25).fill(false);
+            telaGridCells.forEach((cell, i) => {
+                gridSnapshot[i] = cell.classList.contains('filled') || cell.classList.contains('locked');
+            });
+
+            // Salvar histórico
+            if (!mesh.userData.cleanHistory) mesh.userData.cleanHistory = [];
+            mesh.userData.cleanHistory.push({
+                pct: sliderVal,
+                cells: newFilled,
+                photo: mesh.userData.photoUrl,
+                date: new Date().toISOString(),
+                who: getAssignedCollabs(currentSelectedEdge).join(', ') || 'Admin',
+                gridSnapshot: gridSnapshot
+            });
+
+            // Travar os quadrados recém-pintados (não pode mais apagar)
+            if (!mesh.userData.savedCells) mesh.userData.savedCells = new Array(25).fill(false);
+            telaGridCells.forEach((cell, i) => {
+                if (cell.classList.contains('filled')) {
+                    mesh.userData.savedCells[i] = true;
+                    cell.classList.remove('filled');
+                    cell.classList.add('locked');
+                }
+            });
+
+            mesh.userData.progressValue = sliderVal;
+            mesh.userData.filledCells = mesh.userData.savedCells.slice();
+            mesh.userData.observation = document.getElementById('observation-input').value;
+            mesh.userData.photoUrl = null; // Reset foto para próximo salvamento
+            document.getElementById('photo-preview').classList.add('hidden');
+            document.getElementById('preview-img').src = '';
+            updateProgress();
+
+            // Renderizar histórico atualizado
+            renderCleaningHistory(mesh);
+            updateTelaProgress();
+
+            const btn = event.currentTarget; const btnText = document.getElementById('btn-text');
+            const successMsg = sliderVal === 100 ? 'LIMPEZA CONCLUÍDA!' : 'PROGRESSO SALVO!';
+            btnText.innerHTML = successMsg; btn.classList.replace('bg-red-600', 'bg-green-600');
+            setTimeout(() => {
+                btn.classList.replace('bg-green-600', 'bg-red-600');
+                if (sliderVal === 100) {
+                    closeModal(true);
+                    const isMobile = window.innerWidth < 768; const delay = isMobile ? 350 : 0;
+                    setTimeout(() => { const pos = new THREE.Vector3(); mesh.getWorldPosition(pos); createExplosion(pos); }, delay);
+                } else {
+                    btnText.innerHTML = 'SALVAR PROGRESSO';
+                }
+            }, 1000);
+        }
+
+        // selectCollaborator não é mais usado — colaboradores são atribuídos via calendário
+        function selectCollaborator(el, name) {
+        }
+
+        function handlePhoto(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader(); reader.onload = function(e) {
+                    const dataUrl = e.target.result; document.getElementById('preview-img').src = dataUrl; document.getElementById('photo-preview').classList.remove('hidden');
+                    if (currentSelectedEdge && edges[currentSelectedEdge]) { edges[currentSelectedEdge].userData.photoUrl = dataUrl; }
+                    // Esconder aviso de foto obrigatória
+                    document.getElementById('photo-warning').classList.add('hidden');
+                }; reader.readAsDataURL(input.files[0]);
+            }
+        }
+        function removePhoto() {
+            document.getElementById('photo-preview').classList.add('hidden'); document.getElementById('preview-img').src = ''; document.getElementById('photo-input').value = '';
+            if (currentSelectedEdge && edges[currentSelectedEdge]) { edges[currentSelectedEdge].userData.photoUrl = null; }
+        }
+        function saveObservationBtn() {
+            if (!currentSelectedEdge) return;
+            const mesh = edges[currentSelectedEdge]; mesh.userData.observation = document.getElementById('observation-input').value;
+            const btn = document.getElementById('btn-send-obs');
+            btn.classList.replace('bg-red-600', 'bg-green-500');
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
+            setTimeout(() => {
+                btn.classList.replace('bg-green-500', 'bg-red-600');
+                btn.innerHTML = `<svg id="icon-send-obs" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5 rotate-45" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>`;
+            }, 1500);
+        }
+
+        // ─── CALENDÁRIO SEMANAL ───
+        const DIAS_CURTO = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
+        const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        const MESES_CURTO = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+        let weekOffset = 0;
+        let selectedDayKey = null;
+        let dayTasks = {};
+        let daySelectedCollabs = [];
+
+        function getWeekDays(offset) {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const sunday = new Date(today);
+            sunday.setDate(today.getDate() - dayOfWeek + (offset * 7));
+            const days = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(sunday);
+                d.setDate(sunday.getDate() + i);
+                days.push(d);
+            }
+            return days;
+        }
+
+        function telasLocalDateKey(d) {
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+
+        function renderWeekCalendar() {
+            const grid = document.getElementById('week-grid');
+            const label = document.getElementById('week-label');
+            const range = document.getElementById('week-range');
+            const days = getWeekDays(weekOffset);
+            const today = new Date();
+            const todayStr = telasLocalDateKey(today);
+
+            const firstDay = days[0];
+            const lastDay = days[6];
+
+            // Header: mês e range
+            if (firstDay.getMonth() === lastDay.getMonth()) {
+                label.textContent = `${MESES[firstDay.getMonth()]}`;
+                range.textContent = `${firstDay.getDate()} - ${lastDay.getDate()} · ${firstDay.getFullYear()}`;
+            } else {
+                label.textContent = `${MESES_CURTO[firstDay.getMonth()]} — ${MESES_CURTO[lastDay.getMonth()]}`;
+                range.textContent = `${firstDay.getDate()} ${MESES_CURTO[firstDay.getMonth()]} - ${lastDay.getDate()} ${MESES_CURTO[lastDay.getMonth()]} · ${lastDay.getFullYear()}`;
+            }
+
+            grid.innerHTML = '';
+            days.forEach((d, i) => {
+                const dateStr = telasLocalDateKey(d);
+                const isToday = dateStr === todayStr;
+                const tasks = dayTasks[dateStr] || [];
+                const isSelected = dateStr === selectedDayKey;
+                const isWeekend = i === 0 || i === 6;
+
+                const card = document.createElement('div');
+                card.className = 'bg-white/85 backdrop-blur-md rounded-xl border cursor-pointer transition-all hover:border-[#e41e26]/30 active:scale-[0.98]';
+                if (isSelected) {
+                    card.className += ' border-[#e41e26] bg-[#fef2f2]/90';
+                    card.style.boxShadow = '0 0 0 2px rgba(228,30,38,0.12)';
+                } else if (isToday) {
+                    card.className += ' border-[#e41e26]/40 bg-[#fef8f8]/90';
+                } else {
+                    card.className += ' border-gray-100/80';
+                }
+
+                const tasksHtml = tasks.length > 0
+                    ? `<div class="flex flex-wrap gap-1 mt-1.5">${tasks.map(t =>
+                        `<span class="inline-flex items-center gap-1 text-[8px] font-bold text-gray-600 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                            <span class="w-1 h-1 rounded-full bg-[#f59e0b] flex-shrink-0"></span>${t.title}
+                        </span>`
+                    ).join('')}</div>`
+                    : '';
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 px-3 py-2.5">
+                        <div class="flex flex-col items-center w-10 flex-shrink-0">
+                            <span class="text-[10px] font-extrabold ${isWeekend ? 'text-[#e41e26]' : 'text-gray-400'} uppercase tracking-wider leading-none">${DIAS_CURTO[i]}</span>
+                            <span class="${isToday ? 'bg-[#e41e26] text-white w-8 h-8 rounded-lg flex items-center justify-center text-[14px] shadow-md mt-1' : 'text-[20px] text-gray-800 mt-1'} font-black leading-none">${d.getDate()}</span>
+                        </div>
+                        <div class="h-8 w-px bg-gray-100 flex-shrink-0"></div>
+                        <div class="flex-1 min-w-0">
+                            ${tasks.length > 0
+                                ? tasks.map(t =>
+                                    `<div class="flex items-center gap-2 py-0.5"><span class="w-2 h-2 rounded-full bg-[#f59e0b] flex-shrink-0"></span><span class="text-[11px] font-bold text-gray-700 truncate">${t.title}</span></div>`
+                                ).join('')
+                                : `<span class="text-[11px] text-gray-300 font-medium">Sem atividades</span>`
+                            }
+                        </div>
+                        ${tasks.length > 0 ? `<span class="text-[10px] font-black text-white bg-[#e41e26] w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0">${tasks.length}</span>` : ''}
+                    </div>
+                `;
+                card.onclick = () => openDayModal(dateStr, d);
+                grid.appendChild(card);
+            });
+        }
+
+        window.changeWeek = function(delta) {
+            weekOffset += delta;
+            renderWeekCalendar();
+        };
+
+        window.goToToday = function() {
+            weekOffset = 0;
+            renderWeekCalendar();
+        };
+
+        // Toggle sidebar mobile telas
+        window.toggleTelasSidebar = function() {
+            const mainUi = document.getElementById('main-ui');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            const btnOpen = document.getElementById('btn-open-sidebar');
+
+            if (mainUi.classList.contains('sidebar-open')) {
+                // Fechar
+                gsap.to(mainUi, { opacity: 0, x: -30, duration: 0.25, ease: "power2.in", onComplete: () => {
+                    mainUi.classList.remove('sidebar-open');
+                    mainUi.classList.add('hidden');
+                    mainUi.style.opacity = ''; mainUi.style.transform = '';
+                }});
+                backdrop.classList.add('hidden');
+                btnOpen.classList.remove('hidden');
+            } else {
+                // Abrir
+                mainUi.classList.remove('hidden');
+                mainUi.classList.add('sidebar-open');
+                backdrop.classList.remove('hidden');
+                btnOpen.classList.add('hidden');
+                gsap.fromTo(mainUi, { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.3, ease: "power2.out" });
+            }
+        };
+
+        // ─── MODAL ATIVIDADES (LADO ESQUERDO) ───
+        function openDayModal(dateStr, dateObj) {
+            selectedDayKey = dateStr;
+            renderWeekCalendar();
+
+            const modal = document.getElementById('day-modal');
+            const title = document.getElementById('day-modal-title');
+            title.textContent = `${dateObj.getDate()} de ${MESES[dateObj.getMonth()]}`;
+
+            // Mostrar área admin se for admin
+            const adminArea = document.getElementById('day-admin-area');
+            const badge = document.getElementById('user-role-badge');
+            if (badge && badge.textContent === 'Administrador') {
+                adminArea.classList.remove('hidden');
+            } else {
+                adminArea.classList.add('hidden');
+            }
+
+            // Reset wizard
+            daySelectedTelas = [];
+            daySelectedCollabs = [];
+            document.getElementById('day-selected-collabs').innerHTML = '';
+            document.getElementById('day-collab-input').value = '';
+            dayGoToStep(1);
+            renderTelaGrid();
+            renderDayTasks();
+
+            modal.style.display = 'flex';
+            requestAnimationFrame(() => {
+                gsap.fromTo(modal, { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.3, ease: "power2.out" });
+            });
+        }
+
+        window.closeDayModal = function() {
+            const modal = document.getElementById('day-modal');
+            gsap.to(modal, { opacity: 0, x: -50, duration: 0.25, ease: "power2.in", onComplete: () => {
+                modal.style.display = 'none';
+                selectedDayKey = null;
+                renderWeekCalendar();
+            }});
+        };
+
+        function renderDayTasks() {
+            const list = document.getElementById('day-task-list');
+            const empty = document.getElementById('day-empty-state');
+            const tasks = dayTasks[selectedDayKey] || [];
+
+            list.innerHTML = '';
+            if (tasks.length === 0) {
+                list.appendChild(empty);
+                empty.style.display = 'flex';
+                return;
+            }
+            empty.style.display = 'none';
+
+            tasks.forEach((task, idx) => {
+                const item = document.createElement('div');
+                item.className = 'bg-white p-4 rounded-[14px] border border-[#e5e7eb] transition-all hover:border-[#e41e26]/20';
+                item.style.cssText = `box-shadow:0 2px 8px rgba(15,23,42,0.03); animation: teamCardIn 400ms cubic-bezier(.22,.78,.24,1) both; animation-delay: ${idx * 40}ms`;
+                const collabsHtml = task.collabs.map(c =>
+                    `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-[#6b7280] bg-[#fafafa] px-2 py-1 rounded-lg border border-[#e5e7eb]">
+                        <span class="w-4 h-4 rounded-full bg-[#e41e26] text-white flex items-center justify-center text-[7px] font-black">${c.charAt(0)}</span>
+                        ${c}
+                    </span>`
+                ).join('');
+                const deleteBtn = window.currentUserRole === 'admin'
+                    ? `<button onclick="removeDayTask(${idx})" class="p-1 text-[#cbd5e1] hover:text-[#e41e26] transition-colors">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                       </button>`
+                    : '';
+                item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-extrabold text-[#151515] text-[13px] tracking-tight">${task.title}</h4>
+                        ${deleteBtn}
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mt-2">${collabsHtml}</div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // ─── WIZARD DE PASSOS ───
+        let daySelectedTelas = [];
+
+        window.dayGoToStep = function(step) {
+            const step1 = document.getElementById('day-step-1');
+            const step2 = document.getElementById('day-step-2');
+            const dots = document.getElementById('day-step-dots').children;
+
+            if (step === 1) {
+                step1.classList.remove('hidden'); step2.classList.add('hidden');
+                dots[0].style.width = '16px'; dots[0].style.background = '#e41e26';
+                dots[1].style.width = '8px'; dots[1].style.background = 'rgba(228,30,38,0.2)';
+            } else {
+                if (daySelectedTelas.length === 0) return;
+                step1.classList.add('hidden'); step2.classList.remove('hidden');
+                dots[0].style.width = '8px'; dots[0].style.background = 'rgba(228,30,38,0.2)';
+                dots[1].style.width = '16px'; dots[1].style.background = '#e41e26';
+            }
+        };
+
+        function renderTelaGrid() {
+            const grid = document.getElementById('day-tela-grid');
+            const existing = (dayTasks[selectedDayKey] || []).map(t => t.title);
+            grid.innerHTML = '';
+            for (let i = 1; i <= 18; i++) {
+                const num = String(i).padStart(2, '0');
+                const sides = ['INTERNA', 'EXTERNA'];
+                sides.forEach(side => {
+                    const name = `TELA ${num} (${side})`;
+                    const alreadyAssigned = existing.includes(name);
+                    const isSelected = daySelectedTelas.includes(name);
+                    const isInt = side === 'INTERNA';
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'py-1.5 px-1 rounded-lg text-[9px] font-black transition-all active:scale-95 border flex flex-col items-center gap-0.5 ';
+                    if (alreadyAssigned) {
+                        btn.className += 'bg-[#f0fdf4] text-[#22c55e] border-[#bbf7d0] cursor-not-allowed opacity-50';
+                    } else if (isSelected) {
+                        btn.className += 'bg-[#e41e26] text-white border-[#e41e26] shadow-md shadow-red-500/20';
+                    } else {
+                        btn.className += 'bg-[#fafafa] text-[#151515] border-[#e5e7eb] hover:border-[#e41e26] hover:bg-[#fef2f2]';
+                    }
+                    btn.innerHTML = `<span class="text-[11px] font-black">${num}</span><span class="text-[7px] font-bold ${isSelected ? 'text-white/70' : alreadyAssigned ? 'text-[#22c55e]/60' : 'text-gray-400'} uppercase leading-none">${isInt ? 'INT' : 'EXT'}</span>`;
+                    if (!alreadyAssigned) {
+                        btn.onclick = () => {
+                            if (isSelected) { daySelectedTelas = daySelectedTelas.filter(t => t !== name); }
+                            else { daySelectedTelas.push(name); }
+                            renderTelaGrid();
+                        };
+                    }
+                    grid.appendChild(btn);
+                });
+            }
+        }
+
+        // Adicionar telas ao dia
+        window.addDayTask = function() {
+            if (daySelectedTelas.length === 0) return;
+            if (!selectedDayKey) return;
+
+            if (!dayTasks[selectedDayKey]) dayTasks[selectedDayKey] = [];
+
+            daySelectedTelas.forEach(tela => {
+                if (!dayTasks[selectedDayKey].some(t => t.title === tela)) {
+                    dayTasks[selectedDayKey].push({ title: tela, collabs: [...daySelectedCollabs] });
+                }
+            });
+
+            daySelectedTelas = [];
+            daySelectedCollabs = [];
+            document.getElementById('day-selected-collabs').innerHTML = '';
+            document.getElementById('day-collab-input').value = '';
+            dayGoToStep(1);
+            renderTelaGrid();
+            renderDayTasks();
+            renderWeekCalendar();
+            updatePulsatingTelas();
+        };
+
+        window.removeDayTask = function(idx) {
+            if (!selectedDayKey || !dayTasks[selectedDayKey]) return;
+            dayTasks[selectedDayKey].splice(idx, 1);
+            renderDayTasks();
+            renderWeekCalendar();
+            updatePulsatingTelas();
+        };
+
+        // Autocomplete de colaboradores (startsWith igual calendário principal)
+        function renderCollabSuggestions(matches) {
+            const box = document.getElementById('day-collab-suggestions');
+            if (matches.length === 0) { box.classList.add('hidden'); return; }
+            box.classList.remove('hidden');
+            box.innerHTML = matches.map(u => {
+                const avatar = u.photo
+                    ? `<img src="${u.photo}" class="w-7 h-7 rounded-full object-cover border border-white" style="box-shadow:0 1px 3px rgba(15,23,42,0.08)">`
+                    : `<div class="w-7 h-7 rounded-full bg-[#e41e26] flex items-center justify-center text-white font-black text-[10px]">${u.nome.charAt(0)}</div>`;
+                return `
+                <div class="px-3.5 py-2.5 cursor-pointer hover:bg-[#fef2f2] border-b border-[#e5e7eb]/40 flex items-center gap-3 transition-colors" onclick="selectDayCollab('${u.nome}')">
+                    ${avatar}
+                    <div class="flex-1 min-w-0">
+                        <span class="font-bold text-[#151515] text-[12px] block truncate">${u.nome}</span>
+                        <span class="text-[9px] font-bold text-[#94a3b8] uppercase tracking-wider">${u.funcao} · #${u.matricula}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        window.filterDayCollabs = function(query) {
+            const box = document.getElementById('day-collab-suggestions');
+            const q = (query || '').toUpperCase().trim();
+            const available = window.telasTeamData.filter(u => u.active && !daySelectedCollabs.includes(u.nome));
+            if (!q) {
+                // Mostra todos os disponíveis quando digita algo
+                box.classList.add('hidden');
+                return;
+            }
+            const matches = available.filter(u => u.nome.toUpperCase().startsWith(q));
+            renderCollabSuggestions(matches);
+        };
+
+        // Fechar sugestões ao clicar fora
+        document.addEventListener('click', function(e) {
+            const box = document.getElementById('day-collab-suggestions');
+            const input = document.getElementById('day-collab-input');
+            if (box && input && !box.contains(e.target) && e.target !== input) {
+                box.classList.add('hidden');
+            }
+        });
+
+        window.selectDayCollab = function(name) {
+            if (daySelectedCollabs.includes(name)) return;
+            daySelectedCollabs.push(name);
+            document.getElementById('day-collab-suggestions').classList.add('hidden');
+            document.getElementById('day-collab-input').value = '';
+            renderDayCollabChips();
+        };
+
+        window.removeDayCollab = function(name) {
+            daySelectedCollabs = daySelectedCollabs.filter(n => n !== name);
+            renderDayCollabChips();
+        };
+
+        function renderDayCollabChips() {
+            const container = document.getElementById('day-selected-collabs');
+            const user = window.telasTeamData.find(u => daySelectedCollabs.includes(u.nome));
+            container.innerHTML = daySelectedCollabs.map(n => {
+                const u = window.telasTeamData.find(t => t.nome === n);
+                const initial = n.charAt(0);
+                return `
+                <span class="inline-flex items-center gap-2 bg-[#fef2f2] text-[#e41e26] pl-1.5 pr-2.5 py-1 rounded-full text-[11px] font-bold border border-[#fecaca]">
+                    <span class="w-5 h-5 rounded-full bg-[#e41e26] text-white flex items-center justify-center text-[8px] font-black">${initial}</span>
+                    ${n}
+                    <button onclick="removeDayCollab('${n}')" class="ml-0.5 hover:text-[#151515] transition-colors text-[14px] leading-none">&times;</button>
+                </span>`;
+            }).join('');
+        }
+
+        // init3D is called by Firebase auth callback above
+    </script>
+</body>
+</html>

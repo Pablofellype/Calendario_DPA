@@ -61,9 +61,7 @@ window.openTeamModal = async function() {
     const modal = document.getElementById('team-modal');
     modal.classList.remove('hidden');
     gsap.to(modal, { opacity: 1, duration: 0.3 });
-    gsap.fromTo(modal.querySelector('.bottom-sheet'), { y: '100%' }, { y: 0, duration: 0.5, ease: "power3.out", onComplete: () => {
-        if (window.startTeamModalTour) window.startTeamModalTour();
-    }});
+    gsap.fromTo(modal.querySelector('.bottom-sheet'), { y: '100%' }, { y: 0, duration: 0.5, ease: "power3.out" });
 }
 
 window.closeTeamModal = function() {
@@ -157,9 +155,10 @@ window.handleRealPhoto = function(input, taskId) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
 
-        // Bloqueia upload se não houver colaborador atribuído
+        // Bloqueia upload se não houver colaborador atribuído (exceto admin)
+        const isAdmin = state.user && state.user.role === 'admin';
         const task = state.tasks.find(t => t.id === taskId);
-        if (task && (!task.assignee || task.assignee.trim() === '')) {
+        if (!isAdmin && task && (!task.assignee || task.assignee.trim() === '')) {
             showCustomAlert('Atribua um colaborador antes de adicionar foto.');
             input.value = '';
             return;
@@ -209,10 +208,17 @@ window.handleRealPhoto = function(input, taskId) {
                     }
                     try {
                         const newPhotos = [...(task.photos || []), base64String];
-                        await updateDoc(doc(db, task.path), { 
+                        await updateDoc(doc(db, task.path), {
                             photos: newPhotos,
-                            hasPhotoProof: true 
+                            hasPhotoProof: true
                         });
+                        // Atualizar state local para re-render imediato
+                        task.photos = newPhotos;
+                        task.hasPhotoProof = true;
+                        if (state.selectedDate) {
+                            const dateKey = state.selectedDate.toISOString().split('T')[0];
+                            if (typeof window.renderTaskList === 'function') window.renderTaskList(dateKey);
+                        }
                         showCustomAlert("FOTO ADICIONADA!", "success");
                     } catch(err) {
                         console.error(err);

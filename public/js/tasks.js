@@ -26,6 +26,10 @@ const lucide = window.lucide;
 let unsubscribeTasks = null;
 let initialLoadComplete = false;
 
+function localDateKey(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
 // ── Admin Activity Log ──
 async function logAdmin(action, details) {
     if (!state.user || state.user.role !== 'admin') return;
@@ -58,9 +62,11 @@ function subscribeToTasks() {
 
     const year = state.date.getFullYear();
     const month = state.date.getMonth();
-    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month + 1, 0).getDate();
-    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    // Expand range by 7 days on each side to support weekly view crossing month boundaries
+    const rStart = new Date(year, month, 1 - 7);
+    const rEnd = new Date(year, month + 1, 7);
+    const startDate = `${rStart.getFullYear()}-${String(rStart.getMonth() + 1).padStart(2, '0')}-${String(rStart.getDate()).padStart(2, '0')}`;
+    const endDate = `${rEnd.getFullYear()}-${String(rEnd.getMonth() + 1).padStart(2, '0')}-${String(rEnd.getDate()).padStart(2, '0')}`;
 
     function onTaskSnapshot(snapshot) {
         state.tasks = snapshot.docs.map(doc => ({ id: doc.id, path: doc.ref.path, ...doc.data() }));
@@ -68,13 +74,6 @@ function subscribeToTasks() {
         if (isFirstLoad && loadingScreen) {
             loadingScreen.classList.add('hidden');
             initialLoadComplete = true;
-            // Start onboarding after data loads
-            setTimeout(() => {
-                if (window.startOnboarding) {
-                    const isAdmin = state.user && state.user.role === 'admin';
-                    window.startOnboarding(isAdmin);
-                }
-            }, 600);
         }
 
         if (!isFirstLoad) {
@@ -138,8 +137,16 @@ function subscribeToTasks() {
 }
 
 // --- UI HELPERS ---
-function playIntro() { gsap.to('.login-item', { opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: "power4.out" }); }
+function playIntro() { if (window.__skipLoginIntro) return; gsap.to('.login-item', { opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: "power4.out" }); }
 function animatePageTransition() {
+    if (window.__skipLoginIntro) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('app-screen').classList.remove('hidden');
+        gsap.to('.app-content', { opacity: 1, y: 0, duration: 0.6, stagger: 0.15, onComplete: () => { setupSwipeGestures(); }});
+        return;
+    }
     gsap.timeline()
         .to('#login-screen', { opacity: 0, scale: 0.95, duration: 0.4, onComplete: () => {
             document.getElementById('login-screen').classList.add('hidden');
@@ -412,6 +419,7 @@ function renderCalendar() {
 }
 
 // --- WEEKLY VIEW ---
+
 function renderWeeklyView() {
     const calGrid = document.getElementById('calendar-grid');
     const weekGrid = document.getElementById('weekly-grid');
@@ -432,31 +440,38 @@ function renderWeeklyView() {
 
     const monthStart = weekStart.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase();
     const monthEnd = weekEnd.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase();
-    document.getElementById('current-month').innerText = `${weekStart.getDate()} - ${weekEnd.getDate()}`;
-    document.getElementById('current-year').innerText =
-        monthStart === monthEnd ? `${monthStart} ${weekStart.getFullYear()}` :
-        `${monthStart} - ${monthEnd} ${weekEnd.getFullYear()}`;
+    if (monthStart === monthEnd) {
+        document.getElementById('current-month').innerText = `${weekStart.getDate()} - ${weekEnd.getDate()} ${monthStart}`;
+        document.getElementById('current-year').innerText = `${weekStart.getFullYear()}`;
+    } else {
+        document.getElementById('current-month').innerText = `${weekStart.getDate()} ${monthStart} - ${weekEnd.getDate()} ${monthEnd}`;
+        document.getElementById('current-year').innerText = `${weekEnd.getFullYear()}`;
+    }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = localDateKey(today);
     const filteredTasks = getFilteredTasks();
     const dayNames = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
 
     weekGrid.innerHTML = '';
+    weekGrid.style.display = 'grid';
+    const isMobile = window.innerWidth < 640;
+    weekGrid.style.gridTemplateColumns = isMobile ? '1fr' : 'repeat(7, 1fr)';
 
     for (let i = 0; i < 7; i++) {
         const dayDate = new Date(weekStart);
         dayDate.setDate(weekStart.getDate() + i);
-        const dateKey = dayDate.toISOString().split('T')[0];
+        const dateKey = localDateKey(dayDate);
         const isToday = dateKey === todayStr;
-        const dayTasks = filteredTasks.filter(t => t.date === dateKey);
+        const tasksForDay = filteredTasks.filter(t => t.date === dateKey);
 
         const col = document.createElement('div');
         col.className = `weekly-day${isToday ? ' weekly-today' : ''}${i === 0 || i === 6 ? ' weekly-weekend' : ''}`;
         col.onclick = () => openModal(new Date(dayDate));
 
-        let tasksHTML = dayTasks.length === 0
+        let tasksHTML = tasksForDay.length === 0
             ? '<p class="weekly-no-tasks">\u2014</p>'
-            : dayTasks.map(t => {
+            : tasksForDay.map(t => {
                 let dot;
                 if (t.completed) { dot = '#22c55e'; }
                 else {
@@ -588,9 +603,7 @@ function openModal(date) {
     renderTaskList(date.toISOString().split('T')[0]);
     modal.classList.remove('hidden');
     gsap.to(modal, { opacity: 1, duration: 0.3 });
-    gsap.fromTo(modal.querySelector('.bottom-sheet'), { y: '100%' }, { y: 0, duration: 0.5, ease: "power3.out", onComplete: () => {
-        if (isAdmin && window.startTaskModalTour) window.startTaskModalTour();
-    }});
+    gsap.fromTo(modal.querySelector('.bottom-sheet'), { y: '100%' }, { y: 0, duration: 0.5, ease: "power3.out" });
 }
 
 window.closeModal = function() {
@@ -936,10 +949,17 @@ window.toggleTask = async function(id) {
     }
     const isAdmin = state.user && state.user.role === 'admin';
     const hasPhotos = task.photos && task.photos.length > 0;
+    const hasComments = task.comments && task.comments.length > 0;
 
-    if(!isAdmin && !task.completed && !hasPhotos) {
-        gsap.to('.bottom-sheet', { x: [-5, 5, -5, 5, 0], duration: 0.4 });
-        showCustomAlert('Obrigatório anexar foto antes de concluir!'); return;
+    if (!task.completed) {
+        if (isAdmin && !hasPhotos && !hasComments) {
+            gsap.to('.bottom-sheet', { x: [-5, 5, -5, 5, 0], duration: 0.4 });
+            showCustomAlert('Adicione uma foto ou comentário antes de concluir!'); return;
+        }
+        if (!isAdmin && !hasPhotos) {
+            gsap.to('.bottom-sheet', { x: [-5, 5, -5, 5, 0], duration: 0.4 });
+            showCustomAlert('Obrigatório anexar foto antes de concluir!'); return;
+        }
     }
 
     try {
@@ -959,6 +979,7 @@ window.toggleTask = async function(id) {
     } catch (e) { console.error(e); }
 }
 
+window.renderTaskList = renderTaskList;
 window.enableEdit = function(taskId) { state.editingTaskId = taskId; renderTaskList(state.selectedDate.toISOString().split('T')[0]); }
 
 window.prepareComment = async function(taskId) {
