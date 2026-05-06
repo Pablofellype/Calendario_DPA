@@ -198,32 +198,39 @@ window.handleRealPhoto = function(input, taskId) {
                 }
 
                 // Salva no banco
-                await syncServerClock();
+                try {
+                    await syncServerClock();
+                } catch(e) { console.warn('Clock sync falhou, continuando...', e); }
+
                 const task = state.tasks.find(t => t.id === taskId);
-                if(task) {
+                if(!task) { showCustomAlert("Tarefa não encontrada."); return; }
+
+                const isAdm = state.user && state.user.role === 'admin';
+                if (!isAdm) {
                     const perm = getTaskEditPermission(task);
                     if (!perm.ok) {
                         showCustomAlert(taskEditDenyMessage(perm.reason));
                         return;
                     }
-                    try {
-                        const newPhotos = [...(task.photos || []), base64String];
-                        await updateDoc(doc(db, task.path), {
-                            photos: newPhotos,
-                            hasPhotoProof: true
-                        });
-                        // Atualizar state local para re-render imediato
-                        task.photos = newPhotos;
-                        task.hasPhotoProof = true;
-                        if (state.selectedDate) {
-                            const dateKey = state.selectedDate.toISOString().split('T')[0];
-                            if (typeof window.renderTaskList === 'function') window.renderTaskList(dateKey);
-                        }
-                        showCustomAlert("FOTO ADICIONADA!", "success");
-                    } catch(err) {
-                        console.error(err);
-                        showCustomAlert("ERRO AO SALVAR FOTO.");
+                }
+
+                try {
+                    const newPhotos = [...(task.photos || []), base64String];
+                    await updateDoc(doc(db, task.path), {
+                        photos: newPhotos,
+                        hasPhotoProof: true
+                    });
+                    // Atualizar state local para re-render imediato
+                    task.photos = newPhotos;
+                    task.hasPhotoProof = true;
+                    if (state.selectedDate) {
+                        const dateKey = state.selectedDate.toISOString().split('T')[0];
+                        if (typeof window.renderTaskList === 'function') window.renderTaskList(dateKey);
                     }
+                    showCustomAlert("FOTO ADICIONADA!", "success");
+                } catch(err) {
+                    console.error('Erro ao salvar foto:', err);
+                    showCustomAlert("ERRO AO SALVAR FOTO: " + (err.message || err));
                 }
             }
         };
