@@ -11,6 +11,9 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Reflector.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #ffffff; touch-action: none; }
         #canvas-container { width: 100%; height: 100vh; cursor: default; }
@@ -183,6 +186,9 @@
         .tw-16 { animation-delay: 2.25s; }
         .tw-17 { animation-delay: 2.4s; }
         .tw-18 { animation-delay: 2.55s; }
+        .tw-19 { animation-delay: 2.7s; }
+        .tw-20 { animation-delay: 2.85s; }
+        .tw-21 { animation-delay: 3.0s; }
 
         @keyframes wireTrace {
             0%, 100% { stroke: rgba(228,30,38,0.15); stroke-width: 1.5; }
@@ -193,35 +199,48 @@
 </head>
 <body>
 
-    <!-- Auth Loading - wireframe das telas (planta baixa) -->
+    <!-- Auth Loading - wireframe das telas (planta baixa L-shape) -->
     <div id="auth-loading">
-        <svg viewBox="0 0 200 240" class="loading-plant" style="width:min(60vw,280px);height:auto;">
-          <g transform="rotate(180 100 120)">
-            <!-- TELA 01-04: parede superior -->
-            <rect x="21" y="18.5" width="38" height="3" rx="1" class="telas-wire tw-1"/>
-            <rect x="61" y="18.5" width="38" height="3" rx="1" class="telas-wire tw-2"/>
-            <rect x="101" y="18.5" width="38" height="3" rx="1" class="telas-wire tw-3"/>
-            <rect x="141" y="18.5" width="38" height="3" rx="1" class="telas-wire tw-4"/>
-            <!-- TELA 05-09: parede direita -->
-            <rect x="178.5" y="21" width="3" height="38" rx="1" class="telas-wire tw-5"/>
-            <rect x="178.5" y="61" width="3" height="38" rx="1" class="telas-wire tw-6"/>
-            <rect x="178.5" y="101" width="3" height="38" rx="1" class="telas-wire tw-7"/>
-            <rect x="178.5" y="141" width="3" height="38" rx="1" class="telas-wire tw-8"/>
-            <rect x="178.5" y="181" width="3" height="38" rx="1" class="telas-wire tw-9"/>
-            <!-- TELA 10-12: parede inferior -->
-            <rect x="141" y="218.5" width="38" height="3" rx="1" class="telas-wire tw-10"/>
-            <rect x="101" y="218.5" width="38" height="3" rx="1" class="telas-wire tw-11"/>
-            <rect x="61" y="218.5" width="38" height="3" rx="1" class="telas-wire tw-12"/>
-            <!-- TELA 13-14: parede interior esquerda inferior -->
-            <rect x="58.5" y="181" width="3" height="38" rx="1" class="telas-wire tw-13"/>
-            <rect x="58.5" y="141" width="3" height="38" rx="1" class="telas-wire tw-14"/>
-            <!-- TELA 15: parede interior horizontal -->
-            <rect x="21" y="138.5" width="38" height="3" rx="1" class="telas-wire tw-15"/>
-            <!-- TELA 16-18: parede esquerda -->
-            <rect x="18.5" y="101" width="3" height="38" rx="1" class="telas-wire tw-16"/>
-            <rect x="18.5" y="61" width="3" height="38" rx="1" class="telas-wire tw-17"/>
-            <rect x="18.5" y="21" width="3" height="38" rx="1" class="telas-wire tw-18"/>
-          </g>
+        <svg viewBox="0 0 190 260" class="loading-plant" style="width:min(55vw,260px);height:auto;">
+          <!-- TELA 01-03: parede esquerda extensao (de baixo pra cima) -->
+          <rect x="68.5" y="75" width="3" height="20" rx="1" class="telas-wire tw-1"/>
+          <rect x="68.5" y="53" width="3" height="20" rx="1" class="telas-wire tw-2"/>
+          <rect x="68.5" y="31" width="3" height="20" rx="1" class="telas-wire tw-3"/>
+          <!-- TELA 04: curva canto superior-esquerdo extensao -->
+          <path d="M 70 31 Q 70 13 88 13" class="telas-wire tw-4" stroke-linecap="round"/>
+          <!-- TELA 05-07: parede superior extensao -->
+          <rect x="88" y="11.5" width="22" height="3" rx="1" class="telas-wire tw-5"/>
+          <rect x="112" y="11.5" width="22" height="3" rx="1" class="telas-wire tw-6"/>
+          <rect x="136" y="11.5" width="22" height="3" rx="1" class="telas-wire tw-7"/>
+          <!-- TELA 08: curva canto superior-direito extensao -->
+          <path d="M 158 13 Q 172 13 172 31" class="telas-wire tw-8" stroke-linecap="round"/>
+          <!-- TELA 09-11: parede direita (extensao) -->
+          <rect x="170.5" y="31" width="3" height="30" rx="1" class="telas-wire tw-9"/>
+          <rect x="170.5" y="64" width="3" height="30" rx="1" class="telas-wire tw-10"/>
+          <rect x="170.5" y="97" width="3" height="30" rx="1" class="telas-wire tw-11"/>
+          <!-- TELA 12-13: parede direita (corpo principal) -->
+          <rect x="170.5" y="155" width="3" height="30" rx="1" class="telas-wire tw-12"/>
+          <rect x="170.5" y="188" width="3" height="30" rx="1" class="telas-wire tw-13"/>
+          <!-- TELA 14: curva canto inferior-direito -->
+          <path d="M 172 218 Q 172 240 150 240" class="telas-wire tw-14" stroke-linecap="round"/>
+          <!-- Parede inferior solida (sem numero) -->
+          <line x1="150" y1="240" x2="40" y2="240" stroke="rgba(228,30,38,0.07)" stroke-width="1.5"/>
+          <!-- TELA 15: curva canto inferior-esquerdo -->
+          <path d="M 40 240 Q 18 240 18 218" class="telas-wire tw-15" stroke-linecap="round"/>
+          <!-- TELA 16-20: parede esquerda (corpo principal) -->
+          <rect x="16.5" y="200" width="3" height="20" rx="1" class="telas-wire tw-16"/>
+          <rect x="16.5" y="178" width="3" height="20" rx="1" class="telas-wire tw-17"/>
+          <rect x="16.5" y="143" width="3" height="20" rx="1" class="telas-wire tw-18"/>
+          <rect x="16.5" y="121" width="3" height="20" rx="1" class="telas-wire tw-19"/>
+          <rect x="16.5" y="99" width="3" height="20" rx="1" class="telas-wire tw-20"/>
+          <!-- TELA 21: parede juncao horizontal -->
+          <rect x="22" y="94.5" width="44" height="3" rx="1" class="telas-wire tw-21"/>
+          <!-- Paredes solidas de juncao (sem numero) -->
+          <path d="M 66 97 Q 70 97 70 95" stroke="rgba(228,30,38,0.07)" stroke-width="1.5" fill="none"/>
+          <!-- Parede direita - gap portao -->
+          <line x1="172" y1="127" x2="172" y2="155" stroke="rgba(228,30,38,0.05)" stroke-width="1" stroke-dasharray="2,2"/>
+          <!-- Parede esquerda - gap portao -->
+          <line x1="18" y1="135" x2="18" y2="143" stroke="rgba(228,30,38,0.05)" stroke-width="1" stroke-dasharray="2,2"/>
         </svg>
     </div>
 
@@ -245,6 +264,14 @@
                 <!-- Equipe (colaboradores) -->
                 <button id="btn-team" onclick="openTeamModal()" class="hidden group w-9 h-9 rounded-[10px] flex items-center justify-center text-[#6b7280] hover:text-blue-600 hover:bg-blue-50 transition-all" title="Gerenciar Equipe">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                </button>
+                <!-- Historico (admin only) -->
+                <button id="btn-history" onclick="openHistoryDashboard()" class="hidden group w-9 h-9 rounded-[10px] flex items-center justify-center text-[#6b7280] hover:text-violet-600 hover:bg-violet-50 transition-all" title="Histórico Completo">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </button>
+                <!-- Relatorios (admin only) -->
+                <button id="btn-reports" onclick="openReportsDashboard()" class="hidden group w-9 h-9 rounded-[10px] flex items-center justify-center text-[#6b7280] hover:text-amber-600 hover:bg-amber-50 transition-all" title="Relatórios & Métricas">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 </button>
                 <!-- Modo FPS -->
                 <button id="btn-fps-header" onclick="toggleFPSMode()" class="group w-9 h-9 rounded-[10px] flex items-center justify-center text-[#6b7280] hover:text-slate-900 hover:bg-slate-100 transition-all" title="Modo 1ª Pessoa">
@@ -275,26 +302,25 @@
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
 
-        <div class="w-full relative flex flex-col md:flex-row justify-between items-start md:items-center ui-element opacity-0">
-            <div class="w-full flex justify-between items-center md:w-auto z-10 pointer-events-auto">
-                <h1 class="text-xl md:text-3xl font-black text-gray-900 tracking-tighter drop-shadow-sm uppercase">Telas Estoque</h1>
+        <div class="w-full flex flex-col items-start ui-element opacity-0">
+            <div class="w-full flex justify-between items-center pointer-events-auto">
+                <h1 class="text-lg md:text-xl font-black text-gray-900 tracking-tighter drop-shadow-sm uppercase">Telas Estoque</h1>
             </div>
-
-            <div class="w-full flex flex-col items-center md:absolute md:left-1/2 md:-translate-x-1/2 md:top-0 z-10 pointer-events-auto mt-2 md:mt-0">
-                <h2 id="dynamic-date" class="text-xl md:text-3xl font-black text-gray-900 tracking-tighter drop-shadow-sm uppercase whitespace-nowrap">CARREGANDO...</h2>
-                <div class="flex items-center mt-1">
-                    <div class="w-3 md:w-4 h-1 bg-red-600 mr-2 rounded-full"></div>
-                    <span class="text-red-600 font-bold text-[10px] md:text-xs tracking-widest uppercase">Atividades do Dia</span>
-                    <div class="w-3 md:w-4 h-1 bg-red-600 ml-2 rounded-full"></div>
+            <div class="w-full flex flex-col items-start pointer-events-auto mt-1">
+                <h2 id="dynamic-date" class="text-sm md:text-base font-black text-gray-900 tracking-tighter drop-shadow-sm uppercase whitespace-nowrap">CARREGANDO...</h2>
+                <div class="flex items-center mt-0.5">
+                    <div class="w-3 h-1 bg-red-600 mr-1.5 rounded-full"></div>
+                    <span class="text-red-600 font-bold text-[9px] md:text-[10px] tracking-widest uppercase">Atividades do Dia</span>
+                    <div class="w-3 h-1 bg-red-600 ml-1.5 rounded-full"></div>
                 </div>
             </div>
         </div>
 
-        <div class="pointer-events-auto w-full max-w-[85vw] md:max-w-[340px] mt-4 md:mt-6 ui-element opacity-0">
-            <div class="bg-white/80 backdrop-blur-md p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 transition-all hover:scale-105 origin-left">
-                <div class="flex justify-between items-end mb-2">
-                    <span class="text-[10px] md:text-xs font-black text-gray-500 tracking-widest uppercase">Limpeza do Estoque</span>
-                    <span id="progress-text" class="text-xs md:text-sm font-black text-gray-900">0/36 (0%)</span>
+        <div class="pointer-events-auto w-full max-w-[85vw] md:max-w-[280px] mt-2 md:mt-3 ui-element opacity-0">
+            <div class="bg-white/80 backdrop-blur-md p-2.5 md:p-3 rounded-xl shadow-sm border border-gray-100 transition-all hover:scale-105 origin-left">
+                <div class="flex justify-between items-end mb-1.5">
+                    <span class="text-[9px] md:text-[10px] font-black text-gray-500 tracking-widest uppercase">Limpeza do Estoque</span>
+                    <span id="progress-text" class="text-[10px] md:text-xs font-black text-gray-900">0/42 (0%)</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-2 md:h-2.5 overflow-hidden shadow-inner">
                     <div id="progress-bar" class="bg-green-500 h-full rounded-full relative" style="width: 0%; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(34,197,94,0.6);"></div>
@@ -303,7 +329,7 @@
         </div>
 
         <!-- Calendário Semanal Vertical -->
-        <div class="pointer-events-auto w-full max-w-[85vw] md:max-w-[340px] mt-3 ui-element opacity-0" style="max-height:calc(100vh - 200px);overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;">
+        <div class="pointer-events-auto w-full max-w-[85vw] md:max-w-[280px] mt-2 ui-element opacity-0" style="max-height:calc(100vh - 180px);overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;">
             <!-- Navegação de mês -->
             <div class="bg-white/90 backdrop-blur-md rounded-xl border border-gray-100 shadow-sm p-2 mb-2">
                 <div class="flex items-center justify-between">
@@ -346,6 +372,72 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Toolbar 3D Visualizacao (admin) -->
+    <div id="viz-toolbar" class="fixed bottom-20 md:bottom-auto md:top-16 right-3 z-20 hidden flex-col gap-1.5 pointer-events-auto ui-element opacity-0">
+        <!-- Mapa de calor -->
+        <button id="btn-heatmap" onclick="toggleHeatmap()" class="group w-9 h-9 rounded-xl bg-white/90 backdrop-blur-md shadow-md border border-gray-200 flex items-center justify-center text-gray-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-90" title="Mapa de Calor">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/></svg>
+        </button>
+        <!-- Filtro status -->
+        <div class="relative">
+            <button id="btn-filter" onclick="toggleFilterMenu()" class="group w-9 h-9 rounded-xl bg-white/90 backdrop-blur-md shadow-md border border-gray-200 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all active:scale-90" title="Filtrar por Status">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+            </button>
+            <div id="filter-menu" class="hidden absolute right-11 top-0 bg-white/95 backdrop-blur-md rounded-xl shadow-lg border border-gray-200 p-1.5 min-w-[140px]">
+                <button onclick="filterTelas('all')" class="w-full text-left px-3 py-1.5 rounded-lg text-[11px] font-bold text-gray-700 hover:bg-gray-100 transition-all flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-gray-400"></span> Todas
+                </button>
+                <button onclick="filterTelas('clean')" class="w-full text-left px-3 py-1.5 rounded-lg text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 transition-all flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Limpas (100%)
+                </button>
+                <button onclick="filterTelas('partial')" class="w-full text-left px-3 py-1.5 rounded-lg text-[11px] font-bold text-amber-700 hover:bg-amber-50 transition-all flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span> Parciais
+                </button>
+                <button onclick="filterTelas('dirty')" class="w-full text-left px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-700 hover:bg-red-50 transition-all flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-red-500"></span> Sujas (0%)
+                </button>
+            </div>
+        </div>
+        <!-- Timeline do dia -->
+        <button id="btn-timeline" onclick="playDayTimeline()" class="group w-9 h-9 rounded-xl bg-white/90 backdrop-blur-md shadow-md border border-gray-200 flex items-center justify-center text-gray-500 hover:text-violet-600 hover:bg-violet-50 hover:border-violet-200 transition-all active:scale-90" title="Timeline do Dia">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </button>
+    </div>
+
+    <!-- Timeline overlay -->
+    <div id="timeline-overlay" class="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-20 hidden pointer-events-auto">
+        <div class="bg-black/85 backdrop-blur-md rounded-2xl px-5 py-3 shadow-xl flex items-center gap-4 min-w-[300px]">
+            <div class="flex-1">
+                <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Timeline do Dia</p>
+                <div class="flex items-center gap-2">
+                    <span id="timeline-current" class="text-white font-black text-sm">0/0</span>
+                    <div class="flex-1 bg-white/20 rounded-full h-1.5 overflow-hidden">
+                        <div id="timeline-bar" class="bg-emerald-400 h-full rounded-full transition-all duration-500" style="width:0%"></div>
+                    </div>
+                </div>
+                <p id="timeline-info" class="text-[10px] text-white/50 font-semibold mt-1"></p>
+            </div>
+            <button onclick="stopDayTimeline()" class="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-white/70 hover:bg-white/20 hover:text-white transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Legenda mapa de calor -->
+    <div id="heatmap-legend" class="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-20 hidden pointer-events-auto">
+        <div class="bg-black/85 backdrop-blur-md rounded-2xl px-5 py-3 shadow-xl flex items-center gap-4">
+            <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Mapa de Calor</p>
+            <div class="flex items-center gap-1.5">
+                <span class="text-[9px] text-emerald-400 font-bold">Limpa</span>
+                <div class="w-20 h-2 rounded-full" style="background:linear-gradient(90deg,#22c55e,#eab308,#ef4444)"></div>
+                <span class="text-[9px] text-red-400 font-bold">Suja</span>
+            </div>
+            <button onclick="toggleHeatmap()" class="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center text-white/70 hover:bg-white/20 transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
     </div>
@@ -487,6 +579,259 @@
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     </div>
                     <p class="text-[11px] text-[#94a3b8] font-bold uppercase tracking-[0.18em]">Nenhuma atividade agendada</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD DE HISTORICO -->
+    <div id="history-dashboard" class="fixed inset-0 z-50 hidden" style="background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);">
+        <div class="absolute inset-2 sm:inset-4 md:inset-8 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-black text-gray-900 tracking-tight">Historico Completo</h2>
+                        <p class="text-[10px] sm:text-xs text-gray-400 font-semibold uppercase tracking-widest">Registro de Limpezas</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <!-- Tabs -->
+                    <div class="hidden sm:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+                        <button onclick="switchHistoryTab('log')" id="htab-log" class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-white shadow-sm text-gray-900">Log</button>
+                        <button onclick="switchHistoryTab('compare')" id="htab-compare" class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all text-gray-500 hover:text-gray-700">Comparativo</button>
+                        <button onclick="switchHistoryTab('calendar')" id="htab-calendar" class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all text-gray-500 hover:text-gray-700">Calendario</button>
+                    </div>
+                    <button onclick="closeHistoryDashboard()" class="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <!-- Mobile tabs -->
+            <div class="sm:hidden flex bg-gray-100 mx-4 mt-3 rounded-xl p-0.5 gap-0.5 flex-shrink-0">
+                <button onclick="switchHistoryTab('log')" id="htab-log-m" class="flex-1 py-2 rounded-lg text-[11px] font-bold transition-all bg-white shadow-sm text-gray-900">Log</button>
+                <button onclick="switchHistoryTab('compare')" id="htab-compare-m" class="flex-1 py-2 rounded-lg text-[11px] font-bold transition-all text-gray-500">Comparativo</button>
+                <button onclick="switchHistoryTab('calendar')" id="htab-calendar-m" class="flex-1 py-2 rounded-lg text-[11px] font-bold transition-all text-gray-500">Calendario</button>
+            </div>
+
+            <!-- TAB: Log Completo -->
+            <div id="history-tab-log" class="flex-1 overflow-y-auto p-4 sm:p-6">
+                <!-- Filtros -->
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <select id="hlog-filter-tela" onchange="renderHistoryLog()" class="text-[11px] font-bold border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-200">
+                        <option value="all">Todas as Telas</option>
+                    </select>
+                    <select id="hlog-filter-who" onchange="renderHistoryLog()" class="text-[11px] font-bold border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-200">
+                        <option value="all">Todos</option>
+                    </select>
+                    <input type="date" id="hlog-filter-from" onchange="renderHistoryLog()" class="text-[11px] font-bold border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-200"/>
+                    <input type="date" id="hlog-filter-to" onchange="renderHistoryLog()" class="text-[11px] font-bold border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-200"/>
+                    <span id="hlog-count" class="text-[10px] font-bold text-gray-400 self-center ml-auto">0 registros</span>
+                </div>
+                <!-- Tabela -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead><tr class="border-b-2 border-gray-200 text-left">
+                            <th class="pb-2 pr-3 font-black text-gray-500 uppercase tracking-wider text-[10px]">Data/Hora</th>
+                            <th class="pb-2 pr-3 font-black text-gray-500 uppercase tracking-wider text-[10px]">Tela</th>
+                            <th class="pb-2 pr-3 font-black text-gray-500 uppercase tracking-wider text-[10px]">Responsavel</th>
+                            <th class="pb-2 pr-3 font-black text-gray-500 uppercase tracking-wider text-[10px]">Progresso</th>
+                            <th class="pb-2 pr-3 font-black text-gray-500 uppercase tracking-wider text-[10px]">Celulas</th>
+                            <th class="pb-2 font-black text-gray-500 uppercase tracking-wider text-[10px]">Grid</th>
+                        </tr></thead>
+                        <tbody id="hlog-tbody" class="divide-y divide-gray-50"></tbody>
+                    </table>
+                </div>
+                <p id="hlog-empty" class="hidden text-center text-sm text-gray-400 py-12 font-semibold">Nenhum registro de limpeza encontrado</p>
+            </div>
+
+            <!-- TAB: Comparativo Mes a Mes -->
+            <div id="history-tab-compare" class="flex-1 overflow-y-auto p-4 sm:p-6 hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <button onclick="changeCompareMonth(-1)" class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-violet-100 hover:text-violet-600 transition-all">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <h3 id="compare-title" class="text-sm font-black text-gray-800 uppercase tracking-wider"></h3>
+                    <button onclick="changeCompareMonth(1)" class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-violet-100 hover:text-violet-600 transition-all">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+                <!-- Cards comparativo -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div id="compare-left" class="bg-gray-50 rounded-2xl p-5 border border-gray-100"></div>
+                    <div id="compare-right" class="bg-gray-50 rounded-2xl p-5 border border-gray-100"></div>
+                </div>
+                <!-- Barras por tela -->
+                <div class="bg-white rounded-2xl border border-gray-200 p-4">
+                    <h4 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Limpezas por Tela</h4>
+                    <div id="compare-bars" class="space-y-1.5 max-h-[300px] overflow-y-auto pr-2"></div>
+                </div>
+            </div>
+
+            <!-- TAB: Calendario Retroativo -->
+            <div id="history-tab-calendar" class="flex-1 overflow-y-auto p-4 sm:p-6 hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <button onclick="changeRetroMonth(-1)" class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-violet-100 hover:text-violet-600 transition-all">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <h3 id="retro-month-title" class="text-sm font-black text-gray-800 uppercase tracking-wider"></h3>
+                    <button onclick="changeRetroMonth(1)" class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-violet-100 hover:text-violet-600 transition-all">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+                <!-- Grid do calendario -->
+                <div class="grid grid-cols-7 gap-1 mb-2">
+                    <span class="text-[9px] font-black text-gray-400 text-center uppercase">Dom</span>
+                    <span class="text-[9px] font-black text-gray-400 text-center uppercase">Seg</span>
+                    <span class="text-[9px] font-black text-gray-400 text-center uppercase">Ter</span>
+                    <span class="text-[9px] font-black text-gray-400 text-center uppercase">Qua</span>
+                    <span class="text-[9px] font-black text-gray-400 text-center uppercase">Qui</span>
+                    <span class="text-[9px] font-black text-gray-400 text-center uppercase">Sex</span>
+                    <span class="text-[9px] font-black text-gray-400 text-center uppercase">Sab</span>
+                </div>
+                <div id="retro-calendar-grid" class="grid grid-cols-7 gap-1 mb-4"></div>
+                <!-- Detalhe do dia selecionado -->
+                <div id="retro-day-detail" class="hidden bg-gray-50 rounded-2xl p-4 border border-gray-200">
+                    <h4 id="retro-day-title" class="text-sm font-black text-gray-800 mb-3"></h4>
+                    <div id="retro-day-list" class="space-y-2 max-h-[300px] overflow-y-auto"></div>
+                    <p id="retro-day-empty" class="hidden text-center text-sm text-gray-400 py-6 font-semibold">Nenhuma limpeza neste dia</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD DE RELATORIOS -->
+    <div id="reports-dashboard" class="fixed inset-0 z-50 hidden" style="background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);">
+        <div class="absolute inset-2 sm:inset-4 md:inset-8 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-black text-gray-900 tracking-tight">Relatorios & Metricas</h2>
+                        <p class="text-[10px] sm:text-xs text-gray-400 font-semibold uppercase tracking-widest">Painel Administrativo</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportReportPDF()" class="flex items-center gap-2 px-3 py-2 bg-[#e41e26] text-white rounded-xl text-xs font-bold hover:bg-red-700 transition-all active:scale-95 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        EXPORTAR PDF
+                    </button>
+                    <button onclick="closeReportsDashboard()" class="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div id="reports-content" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                    <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-4 border border-emerald-200">
+                        <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Progresso Geral</p>
+                        <p id="rpt-progress-total" class="text-2xl sm:text-3xl font-black text-emerald-700">0%</p>
+                        <p id="rpt-progress-sub" class="text-[10px] text-emerald-500 font-semibold mt-1">0/42 superficies</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 border border-blue-200">
+                        <p class="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Limpas Hoje</p>
+                        <p id="rpt-cleaned-today" class="text-2xl sm:text-3xl font-black text-blue-700">0</p>
+                        <p id="rpt-cleaned-today-sub" class="text-[10px] text-blue-500 font-semibold mt-1">superficies</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl p-4 border border-amber-200">
+                        <p class="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Tempo Medio</p>
+                        <p id="rpt-avg-time" class="text-2xl sm:text-3xl font-black text-amber-700">--</p>
+                        <p class="text-[10px] text-amber-500 font-semibold mt-1">entre limpezas</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-4 border border-red-200">
+                        <p class="text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Negligenciadas</p>
+                        <p id="rpt-neglected" class="text-2xl sm:text-3xl font-black text-red-700">0</p>
+                        <p class="text-[10px] text-red-500 font-semibold mt-1">telas em alerta</p>
+                    </div>
+                </div>
+
+                <!-- Grafico de barras por tela -->
+                <div class="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-black text-gray-800 uppercase tracking-wider">Progresso por Tela</h3>
+                        <div class="flex items-center gap-3 text-[10px] font-bold">
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span> 100%</span>
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-amber-400"></span> Parcial</span>
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-red-400"></span> 0%</span>
+                        </div>
+                    </div>
+                    <div id="rpt-bars-container" class="space-y-1.5 max-h-[300px] overflow-y-auto pr-2"></div>
+                </div>
+
+                <!-- Telas Negligenciadas -->
+                <div class="bg-white rounded-2xl border border-red-200 p-4 sm:p-5">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></div>
+                        <h3 class="text-sm font-black text-red-700 uppercase tracking-wider">Telas Negligenciadas</h3>
+                    </div>
+                    <div id="rpt-neglected-list" class="space-y-2"></div>
+                    <p id="rpt-neglected-empty" class="hidden text-center text-sm text-gray-400 py-6 font-semibold">Nenhuma tela negligenciada</p>
+                </div>
+
+                <!-- Historico de Limpezas Recentes -->
+                <div class="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5">
+                    <h3 class="text-sm font-black text-gray-800 uppercase tracking-wider mb-4">Historico Recente de Limpezas</h3>
+                    <div id="rpt-history-table" class="overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="border-b border-gray-200 text-left">
+                                    <th class="pb-2 font-black text-gray-500 uppercase tracking-wider text-[10px]">Tela</th>
+                                    <th class="pb-2 font-black text-gray-500 uppercase tracking-wider text-[10px]">Data</th>
+                                    <th class="pb-2 font-black text-gray-500 uppercase tracking-wider text-[10px]">Responsavel</th>
+                                    <th class="pb-2 font-black text-gray-500 uppercase tracking-wider text-[10px]">Progresso</th>
+                                    <th class="pb-2 font-black text-gray-500 uppercase tracking-wider text-[10px]">Celulas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rpt-history-tbody" class="divide-y divide-gray-50"></tbody>
+                        </table>
+                    </div>
+                    <p id="rpt-history-empty" class="hidden text-center text-sm text-gray-400 py-6 font-semibold">Nenhum registro de limpeza</p>
+                </div>
+
+                <!-- Snapshots 3D - 5 angulos -->
+                <div class="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5">
+                    <h3 class="text-sm font-black text-gray-800 uppercase tracking-wider mb-3">Modelo 3D - Estado Atual</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Frente Esquerda (Externas 01-08, 15-21)</p>
+                            <div class="rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                                <canvas id="rpt-3d-v1" class="w-full" style="aspect-ratio:4/3;object-fit:contain;"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Frente Direita (Externas 05-14)</p>
+                            <div class="rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                                <canvas id="rpt-3d-v2" class="w-full" style="aspect-ratio:4/3;object-fit:contain;"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Frente Interna (Internas 12-20)</p>
+                            <div class="rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                                <canvas id="rpt-3d-v3" class="w-full" style="aspect-ratio:4/3;object-fit:contain;"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tras Interna (Internas 01-11, 21)</p>
+                            <div class="rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                                <canvas id="rpt-3d-v4" class="w-full" style="aspect-ratio:4/3;object-fit:contain;"></canvas>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Vista Superior (Planta Completa)</p>
+                            <div class="rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                                <canvas id="rpt-3d-v5" class="w-full" style="aspect-ratio:3/4;object-fit:contain;max-height:500px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -754,6 +1099,12 @@
                     badge.textContent = 'Administrador';
                     badge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-white shadow-sm whitespace-nowrap text-[#e41e26] border-[#e41e26]/20';
                     if (btnTeam) btnTeam.classList.remove('hidden');
+                    const btnReports = document.getElementById('btn-reports');
+                    if (btnReports) btnReports.classList.remove('hidden');
+                    const btnHistory = document.getElementById('btn-history');
+                    if (btnHistory) btnHistory.classList.remove('hidden');
+                    const vizToolbar = document.getElementById('viz-toolbar');
+                    if (vizToolbar) vizToolbar.classList.remove('hidden');
                     window.currentUserRole = 'admin';
                 }
             } catch(e) {
@@ -787,9 +1138,14 @@
         let wireframes = [];
         let hudLabels = [];
         let explosions = [];
-        let floorMirror, epoxyPlane;
+        let epoxyPlane, sidewalkPlane;
+        let roofMesh;
 
-        let totalScreens = 36;
+        // EMPILHADEIRAS
+        let forklifts = [];
+        let forkliftMeshes = [];
+
+        let totalScreens = 42;
         const clock = new THREE.Clock();
         const globalUniforms = { time: { value: 0.0 } };
 
@@ -902,8 +1258,9 @@
             mesh.userData.gridTexture.needsUpdate = true;
         }
 
-        function createProgressMaterial(wallLength) {
+        function createProgressMaterial(wallLength, wallHeight, isCurved) {
             const grid = createGridTexture();
+            const wh = wallHeight || 1.0;
             const mat = new THREE.MeshStandardMaterial({
                 roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0
             });
@@ -918,6 +1275,10 @@
                 shader.uniforms.time = globalUniforms.time;
                 shader.uniforms.gridMap = { value: grid.texture };
 
+                const uvCalc = isCurved
+                    ? `vGridUV = vec2((atan(position.x, position.z) + 0.785398) / 1.570796, (position.y / ${wh.toFixed(2)}) + 0.5);`
+                    : `vGridUV = vec2((position.x / ${wallLength.toFixed(2)}) + 0.5, (position.y / ${wh.toFixed(2)}) + 0.5);`;
+
                 shader.vertexShader = `
                     varying vec3 vLocalPos;
                     varying vec2 vGridUV;
@@ -925,7 +1286,7 @@
                 `.replace(`#include <begin_vertex>`, `
                     #include <begin_vertex>
                     vLocalPos = position;
-                    vGridUV = vec2((position.x / ${wallLength.toFixed(2)}) + 0.5, position.y + 0.5);
+                    ${uvCalc}
                 `);
 
                 shader.fragmentShader = `
@@ -941,7 +1302,6 @@
                     `
                     vec4 gridSample = texture2D(gridMap, vGridUV);
                     vec3 finalColor = gridSample.rgb;
-                    // Linha de grade sutil entre células
                     vec2 cellPos = fract(vGridUV * 5.0);
                     float gridLine = step(0.06, cellPos.x) * step(0.06, cellPos.y) * step(cellPos.x, 0.94) * step(cellPos.y, 0.94);
                     finalColor = mix(finalColor * 0.7, finalColor, gridLine);
@@ -979,13 +1339,106 @@
             return sprite;
         }
 
+        function createRoofBumpMap() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            for(let x = 0; x < 512; x++) {
+                let val = (Math.cos((x / 512) * Math.PI * 2 * 60) + 1) / 2;
+                let c = Math.floor(val * 255);
+                ctx.fillStyle = `rgb(${c},${c},${c})`;
+                ctx.fillRect(x, 0, 1, 512);
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        function createForklift(colorHex) {
+            const group = new THREE.Group();
+            const bodyGeo = new THREE.BoxGeometry(0.8, 0.5, 1.2);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.4 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.35; group.add(body);
+
+            const cabinGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.1 });
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.set(0, 0.9, -0.1); cabin.userData.targetOpacity = 0.8;
+            group.add(cabin);
+
+            const mastGeo = new THREE.BoxGeometry(0.1, 1.5, 0.1);
+            const mastMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.3 });
+            const mastL = new THREE.Mesh(mastGeo, mastMat); mastL.position.set(-0.3, 0.8, 0.65);
+            const mastR = new THREE.Mesh(mastGeo, mastMat); mastR.position.set(0.3, 0.8, 0.65);
+            group.add(mastL, mastR);
+
+            const forkGeo = new THREE.BoxGeometry(0.05, 0.05, 0.8);
+            const forkL = new THREE.Mesh(forkGeo, mastMat); forkL.position.set(-0.3, 0.15, 1.05);
+            const forkR = new THREE.Mesh(forkGeo, mastMat); forkR.position.set(0.3, 0.15, 1.05);
+            group.add(forkL, forkR);
+
+            const wheelGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.1, 16);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.9 });
+            [[-0.45,0.15,0.4],[0.45,0.15,0.4],[-0.45,0.15,-0.4],[0.45,0.15,-0.4]].forEach(pos => {
+                const w = new THREE.Mesh(wheelGeo, wheelMat); w.rotation.z = Math.PI/2;
+                w.position.set(...pos); group.add(w);
+            });
+
+            const lightGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.1, 12);
+            const lightMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xfacc15, emissiveIntensity: 1 });
+            const siren = new THREE.Mesh(lightGeo, lightMat);
+            siren.position.set(0, 1.25, -0.1); group.add(siren);
+            group.userData.siren = siren;
+
+            group.traverse(child => {
+                if (child.isMesh) {
+                    child.userData.originalOpacity = child.userData.targetOpacity || 1;
+                    child.material.transparent = true; child.material.opacity = 0;
+                    forkliftMeshes.push(child);
+                }
+            });
+            group.userData.state = 'moving';
+            group.userData.speed = 0.02 + (Math.random() * 0.015);
+            group.userData.waitTime = 0;
+            group.userData.target = getSafeWarehouseTarget();
+            return group;
+        }
+
+        function getSafeWarehouseTarget() {
+            let x, z;
+            if (Math.random() > 0.4) {
+                x = (Math.random() * 6.5) - 0.5; z = (Math.random() * 17.5) - 13.5;
+            } else {
+                x = (Math.random() * 3.0) - 6.0; z = (Math.random() * 8.0) - 5.0;
+            }
+            return new THREE.Vector3(x, 0, z);
+        }
+
+        function bendGeometry(geometry, radius, offsetZ) {
+            const positionAttribute = geometry.attributes.position;
+            const vertex = new THREE.Vector3();
+            const effectiveRadius = radius - offsetZ;
+            for (let i = 0; i < positionAttribute.count; i++) {
+                vertex.fromBufferAttribute(positionAttribute, i);
+                const angle = vertex.x / effectiveRadius;
+                const r = effectiveRadius + vertex.z;
+                vertex.x = Math.sin(angle) * r;
+                vertex.z = Math.cos(angle) * r;
+                positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
+            }
+            geometry.computeVertexNormals();
+            geometry.computeBoundingBox();
+            geometry.computeBoundingSphere();
+        }
+
         function init3D() {
             updateDate();
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xffffff);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 30, 0);
+            camera.position.set(0, 45, 0);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -996,54 +1449,134 @@
             controls.enableDamping = true; controls.dampingFactor = 0.05;
             controls.maxPolarAngle = Math.PI / 2 - 0.1;
             controls.enabled = false; controls.enableZoom = false;
+            controls.target.set(0, 0, -4.0);
 
             raycaster = new THREE.Raycaster(); mouse = new THREE.Vector2();
 
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-            directionalLight.position.set(5, 10, 7); scene.add(directionalLight);
+            directionalLight.position.set(5, 10, 4); scene.add(directionalLight);
 
+            // CHAO DO GALPAO (L-shape com cantos arredondados)
             const floorShape = new THREE.Shape();
-            floorShape.moveTo( 3.925, -4.925);
-            floorShape.lineTo( 3.925,  4.925);
-            floorShape.lineTo(-3.925,  4.925);
-            floorShape.lineTo(-3.925, -0.925);
-            floorShape.lineTo(-1.925, -0.925);
-            floorShape.lineTo(-1.925, -4.925);
-            floorShape.lineTo( 3.925, -4.925);
-
+            floorShape.moveTo( 5.5, 15.5);
+            floorShape.lineTo(-0.5, 15.5);
+            floorShape.quadraticCurveTo(-2.5, 15.5, -2.5, 13.5);
+            floorShape.lineTo(-2.5, 7.5);
+            floorShape.quadraticCurveTo(-2.5, 7.0, -3.0, 7.0);
+            floorShape.lineTo(-7.0, 7.0);
+            floorShape.quadraticCurveTo(-7.5, 7.0, -7.5, 6.5);
+            floorShape.lineTo(-7.5, -5.5);
+            floorShape.quadraticCurveTo(-7.5, -7.5, -5.5, -7.5);
+            floorShape.lineTo( 5.5, -7.5);
+            floorShape.quadraticCurveTo( 7.5, -7.5,  7.5, -5.5);
+            floorShape.lineTo( 7.5, 13.5);
+            floorShape.quadraticCurveTo( 7.5, 15.5,  5.5, 15.5);
             const floorGeo = new THREE.ShapeGeometry(floorShape);
 
-            floorMirror = new THREE.Reflector(floorGeo, {
-                clipBias: 0.003, textureWidth: window.innerWidth / 2, textureHeight: window.innerHeight / 2, color: 0xcccccc
-            });
-            floorMirror.rotation.x = Math.PI / 2;
-            floorMirror.position.y = -0.5; floorMirror.visible = false;
-            scene.add(floorMirror);
-
             const epoxyMat = new THREE.MeshStandardMaterial({
-                color: 0xf8fafc, transparent: true, opacity: 0, roughness: 0.1, metalness: 0.1
+                color: 0xffffff, transparent: true, opacity: 0, roughness: 0.8, metalness: 0.1
             });
             epoxyPlane = new THREE.Mesh(floorGeo, epoxyMat);
-            epoxyPlane.rotation.x = Math.PI / 2;
+            epoxyPlane.rotation.x = -Math.PI / 2;
             epoxyPlane.position.y = -0.499;
             scene.add(epoxyPlane);
 
+            // TELHADO removido
+
+            // CALCADA (SIDEWALK)
+            const sidewalkShape = new THREE.Shape();
+            sidewalkShape.moveTo( 5.5, 16.7);
+            sidewalkShape.lineTo(-0.5, 16.7);
+            sidewalkShape.quadraticCurveTo(-3.7, 16.7, -3.7, 13.5);
+            sidewalkShape.lineTo(-3.7, 8.2);
+            sidewalkShape.lineTo(-7.0, 8.2);
+            sidewalkShape.quadraticCurveTo(-8.7, 8.2, -8.7, 6.5);
+            sidewalkShape.lineTo(-8.7, -5.5);
+            sidewalkShape.quadraticCurveTo(-8.7, -8.7, -5.5, -8.7);
+            sidewalkShape.lineTo( 5.5, -8.7);
+            sidewalkShape.quadraticCurveTo( 8.7, -8.7,  8.7, -5.5);
+            sidewalkShape.lineTo( 8.7, 13.5);
+            sidewalkShape.quadraticCurveTo( 8.7, 16.7,  5.5, 16.7);
+
+            const holePath = new THREE.Path();
+            holePath.moveTo( 5.5, 15.5);
+            holePath.quadraticCurveTo( 7.5, 15.5, 7.5, 13.5);
+            holePath.lineTo( 7.5, -5.5);
+            holePath.quadraticCurveTo( 7.5, -7.5, 5.5, -7.5);
+            holePath.lineTo(-5.5, -7.5);
+            holePath.quadraticCurveTo(-7.5, -7.5, -7.5, -5.5);
+            holePath.lineTo(-7.5, 6.5);
+            holePath.quadraticCurveTo(-7.5, 7.0, -7.0, 7.0);
+            holePath.lineTo(-3.0, 7.0);
+            holePath.quadraticCurveTo(-2.5, 7.0, -2.5, 7.5);
+            holePath.lineTo(-2.5, 13.5);
+            holePath.quadraticCurveTo(-2.5, 15.5, -0.5, 15.5);
+            holePath.lineTo( 5.5, 15.5);
+            sidewalkShape.holes.push(holePath);
+
+            const sidewalkGeo = new THREE.ShapeGeometry(sidewalkShape);
+            const sidewalkMat = new THREE.MeshStandardMaterial({
+                color: 0x94a3b8, transparent: true, opacity: 0, roughness: 1.0, metalness: 0.0
+            });
+            sidewalkPlane = new THREE.Mesh(sidewalkGeo, sidewalkMat);
+            sidewalkPlane.rotation.x = -Math.PI / 2;
+            sidewalkPlane.position.y = -0.505;
+            scene.add(sidewalkPlane);
+
+            const floorY = -0.5;
+            const baseWallHeight = 0.35;
+            const fenceHeight = 1.55;
+            const topWallHeight = 0.50;
+            const totalWallHeight = baseWallHeight + fenceHeight + topWallHeight;
+            const wallThickness = 0.15;
+            const thinThickness = 0.01;
+
             const segments = [
-                { id: 'TELA 01', x: -3, z: 5, rot: 0 }, { id: 'TELA 02', x: -1, z: 5, rot: 0 },
-                { id: 'TELA 03', x: 1, z: 5, rot: 0 }, { id: 'TELA 04', x: 3, z: 5, rot: 0 },
-                { id: 'TELA 05', x: 4, z: 4, rot: Math.PI/2 }, { id: 'TELA 06', x: 4, z: 2, rot: Math.PI/2 },
-                { id: 'TELA 07', x: 4, z: 0, rot: Math.PI/2 }, { id: 'TELA 08', x: 4, z: -2, rot: Math.PI/2 },
-                { id: 'TELA 09', x: 4, z: -4, rot: Math.PI/2 }, { id: 'TELA 10', x: 3, z: -5, rot: 0 },
-                { id: 'TELA 11', x: 1, z: -5, rot: 0 }, { id: 'TELA 12', x: -1, z: -5, rot: 0 },
-                { id: 'TELA 13', x: -2, z: -4, rot: Math.PI/2 }, { id: 'TELA 14', x: -2, z: -2, rot: Math.PI/2 },
-                { id: 'TELA 15', x: -3, z: -1, rot: 0 }, { id: 'TELA 16', x: -4, z: 0, rot: Math.PI/2 },
-                { id: 'TELA 17', x: -4, z: 2, rot: Math.PI/2 }, { id: 'TELA 18', x: -4, z: 4, rot: Math.PI/2 }
+                { id: 'TELA 01', x: -2.5, z: -8.5, rot: Math.PI/2, l: 2 },
+                { id: 'TELA 02', x: -2.5, z: -10.5, rot: Math.PI/2, l: 2 },
+                { id: 'TELA 03', x: -2.5, z: -12.5, rot: Math.PI/2, l: 2 },
+                { id: 'TELA 05', x: 0.5, z: -15.5, rot: 0, l: 2 },
+                { id: 'TELA 06', x: 2.5, z: -15.5, rot: 0, l: 2 },
+                { id: 'TELA 07', x: 4.5, z: -15.5, rot: 0, l: 2 },
+                { id: 'TELA 09', x: 7.5, z: -11.9, rot: Math.PI/2, l: 3.2 },
+                { id: 'TELA 10', x: 7.5, z: -8.7, rot: Math.PI/2, l: 3.2 },
+                { id: 'TELA 11', x: 7.5, z: -5.5, rot: Math.PI/2, l: 3.2 },
+                { id: 'TELA 12', x: 7.5, z: 0.7, rot: Math.PI/2, l: 3.2 },
+                { id: 'TELA 13', x: 7.5, z: 3.9, rot: Math.PI/2, l: 3.2 },
+                { id: 'TELA 16', x: -7.5, z: 4.5, rot: Math.PI/2, l: 2 },
+                { id: 'TELA 17', x: -7.5, z: 2.5, rot: Math.PI/2, l: 2 },
+                { id: 'TELA 18', x: -7.5, z: -1.5, rot: Math.PI/2, l: 2 },
+                { id: 'TELA 19', x: -7.5, z: -3.5, rot: Math.PI/2, l: 2 },
+                { id: 'TELA 20', x: -7.5, z: -5.5, rot: Math.PI/2, l: 2 },
+                { id: 'TELA 21', x: -5.0, z: -7.0, rot: 0, l: 4.0 }
             ];
 
             segments.forEach(seg => {
-                createWall(seg.id, [seg.x, 0, seg.z], seg.rot, [1.9, 1.0, 0.15]);
+                createWall(seg.id, [seg.x, floorY, seg.z], seg.rot, [seg.l, fenceHeight, wallThickness, baseWallHeight, topWallHeight]);
             });
+
+            // TELAS CURVADAS
+            createCurvedWall('TELA 04', [-0.5, floorY, -13.5], -Math.PI * 0.75, 2, [fenceHeight, wallThickness, baseWallHeight, topWallHeight]);
+            createCurvedWall('TELA 08',  [5.5, floorY, -13.5],  Math.PI * 0.75, 2, [fenceHeight, wallThickness, baseWallHeight, topWallHeight]);
+            createCurvedWall('TELA 14',  [5.5, floorY,   5.5],  Math.PI * 0.25, 2, [fenceHeight, wallThickness, baseWallHeight, topWallHeight]);
+            createCurvedWall('TELA 15', [-5.5, floorY,   5.5], -Math.PI * 0.25, 2, [fenceHeight, wallThickness, baseWallHeight, topWallHeight]);
+
+            // PAREDES SOLIDAS (sem interacao)
+            createSolidCurvedWall([-7.0, floorY, -6.5], -Math.PI * 0.75, 0.5, [totalWallHeight, thinThickness]);
+            createSolidCurvedWall([-3.0, floorY, -7.5],  Math.PI * 0.25, 0.5, [totalWallHeight, thinThickness]);
+            createSolidWall([0, floorY, 7.5], 0, [11, totalWallHeight, thinThickness]);
+
+            // PORTOES INDUSTRIAIS
+            createGate([7.5, floorY, -2.4], Math.PI/2, 3.0, totalWallHeight);
+            createGate([-7.5, floorY, 0.5], Math.PI/2, 2.0, totalWallHeight);
+
+            // EMPILHADEIRAS ANIMADAS
+            for(let i = 0; i < 6; i++) {
+                const fl = createForklift(0xfacc15);
+                fl.position.copy(getSafeWarehouseTarget());
+                scene.add(fl); forklifts.push(fl);
+            }
 
             window.addEventListener('pointerup', onDocumentPointerUp, false);
             window.addEventListener('pointermove', onPointerMove, false);
@@ -1057,28 +1590,49 @@
         }
 
         function createWall(id, pos, rotationY, size) {
-            const [length, height, fullThickness] = size;
+            const [length, height, fullThickness, baseHeight, topHeight] = size;
             const group = new THREE.Group();
             group.position.set(pos[0], pos[1], pos[2]);
             group.rotation.y = rotationY;
 
+            // BASE WALL (mureta inferior)
+            if (baseHeight > 0) {
+                const baseGeo = new THREE.BoxGeometry(length, baseHeight, fullThickness);
+                const baseMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+                const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+                baseMesh.position.y = baseHeight / 2;
+                group.add(baseMesh); solids.push(baseMesh);
+            }
+
+            // TOP WALL (mureta superior)
+            if (topHeight > 0) {
+                const topGeo = new THREE.BoxGeometry(length, topHeight, fullThickness);
+                const topMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+                const topMesh = new THREE.Mesh(topGeo, topMat);
+                topMesh.position.y = baseHeight + height + (topHeight / 2);
+                group.add(topMesh); solids.push(topMesh);
+            }
+
             const plateThickness = (fullThickness / 2) * 0.8;
             const offsetZ = fullThickness / 4;
             const geo = new THREE.BoxGeometry(length, height, plateThickness);
+            const meshY = baseHeight + (height / 2);
 
-            const mesh1 = new THREE.Mesh(geo, createProgressMaterial(length));
-            mesh1.position.z = offsetZ; mesh1.userData = { progressValue: 0, gridTexture: mesh1.material.userData.gridTex, gridData: mesh1.material.userData.gridData, filledCells: new Array(25).fill(false) };
+            const mesh1 = new THREE.Mesh(geo, createProgressMaterial(length, height));
+            mesh1.position.set(0, meshY, offsetZ);
+            mesh1.userData = { progressValue: 0, gridTexture: mesh1.material.userData.gridTex, gridData: mesh1.material.userData.gridData, filledCells: new Array(25).fill(false) };
             group.add(mesh1);
 
-            const mesh2 = new THREE.Mesh(geo, createProgressMaterial(length));
-            mesh2.position.z = -offsetZ; mesh2.userData = { progressValue: 0, gridTexture: mesh2.material.userData.gridTex, gridData: mesh2.material.userData.gridData, filledCells: new Array(25).fill(false) };
+            const mesh2 = new THREE.Mesh(geo, createProgressMaterial(length, height));
+            mesh2.position.set(0, meshY, -offsetZ);
+            mesh2.userData = { progressValue: 0, gridTexture: mesh2.material.userData.gridTex, gridData: mesh2.material.userData.gridData, filledCells: new Array(25).fill(false) };
             group.add(mesh2);
             solids.push(mesh1, mesh2);
 
             const wireMat = new THREE.LineBasicMaterial({ color: 0xff3333, transparent: true, opacity: 0 });
             const edgesGeo = new THREE.EdgesGeometry(geo);
-            const wire1 = new THREE.LineSegments(edgesGeo, wireMat); wire1.position.z = offsetZ;
-            const wire2 = new THREE.LineSegments(edgesGeo, wireMat); wire2.position.z = -offsetZ;
+            const wire1 = new THREE.LineSegments(edgesGeo, wireMat); wire1.position.set(0, meshY, offsetZ);
+            const wire2 = new THREE.LineSegments(edgesGeo, wireMat); wire2.position.set(0, meshY, -offsetZ);
 
             group.add(wire1, wire2); wireframes.push(wire1, wire2);
             group.updateMatrixWorld(true);
@@ -1092,7 +1646,7 @@
             }
 
             const hudLabel = createHUDLabel(id);
-            hudLabel.position.set(0, (height / 2) + 0.3, 0);
+            hudLabel.position.set(0, baseHeight + height + topHeight + 0.3, 0);
             group.add(hudLabel); hudLabels.push(hudLabel);
             mesh1.userData.hudLabel = hudLabel; mesh2.userData.hudLabel = hudLabel;
 
@@ -1100,6 +1654,150 @@
             mesh1.userData.originalY = mesh1.position.y;
             mesh2.userData.originalY = mesh2.position.y;
             edges[mesh1.userData.id] = mesh1; edges[mesh2.userData.id] = mesh2;
+        }
+
+        function createCurvedWall(id, pos, rotationY, radius, size) {
+            const [height, fullThickness, baseHeight, topHeight] = size;
+            const group = new THREE.Group();
+            group.position.set(pos[0], pos[1], pos[2]);
+            group.rotation.y = rotationY;
+
+            if (baseHeight > 0) {
+                const arcLen = radius * Math.PI / 2;
+                const baseGeo = new THREE.BoxGeometry(arcLen, baseHeight, fullThickness, 16, 1, 1);
+                bendGeometry(baseGeo, radius, 0);
+                const baseMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+                const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+                baseMesh.position.y = baseHeight / 2;
+                group.add(baseMesh); solids.push(baseMesh);
+            }
+            if (topHeight > 0) {
+                const arcLen = radius * Math.PI / 2;
+                const topGeo = new THREE.BoxGeometry(arcLen, topHeight, fullThickness, 16, 1, 1);
+                bendGeometry(topGeo, radius, 0);
+                const topMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+                const topMesh = new THREE.Mesh(topGeo, topMat);
+                topMesh.position.y = baseHeight + height + (topHeight / 2);
+                group.add(topMesh); solids.push(topMesh);
+            }
+
+            const plateThickness = (fullThickness / 2) * 0.8;
+            const offsetZ = fullThickness / 4;
+            const arcLengthInner = (radius - offsetZ) * Math.PI / 2;
+            const arcLengthOuter = (radius + offsetZ) * Math.PI / 2;
+
+            const geoInner = new THREE.BoxGeometry(arcLengthInner, height, plateThickness, 16, 1, 1);
+            const geoOuter = new THREE.BoxGeometry(arcLengthOuter, height, plateThickness, 16, 1, 1);
+            bendGeometry(geoInner, radius, offsetZ);
+            bendGeometry(geoOuter, radius, -offsetZ);
+
+            const meshY = baseHeight + (height / 2);
+
+            const mesh1 = new THREE.Mesh(geoInner, createProgressMaterial(arcLengthInner, height, true));
+            mesh1.position.y = meshY;
+            mesh1.userData = { id: id + ' (INTERNA)', progressValue: 0, gridTexture: mesh1.material.userData.gridTex, gridData: mesh1.material.userData.gridData, filledCells: new Array(25).fill(false) };
+            group.add(mesh1);
+
+            const mesh2 = new THREE.Mesh(geoOuter, createProgressMaterial(arcLengthOuter, height, true));
+            mesh2.position.y = meshY;
+            mesh2.userData = { id: id + ' (EXTERNA)', progressValue: 0, gridTexture: mesh2.material.userData.gridTex, gridData: mesh2.material.userData.gridData, filledCells: new Array(25).fill(false) };
+            group.add(mesh2);
+            solids.push(mesh1, mesh2);
+
+            const wireMat = new THREE.LineBasicMaterial({ color: 0xff3333, transparent: true, opacity: 0 });
+            const wire1 = new THREE.LineSegments(new THREE.EdgesGeometry(geoInner), wireMat); wire1.position.y = meshY;
+            const wire2 = new THREE.LineSegments(new THREE.EdgesGeometry(geoOuter), wireMat); wire2.position.y = meshY;
+            group.add(wire1, wire2); wireframes.push(wire1, wire2);
+
+            group.updateMatrixWorld(true);
+
+            const hudLabel = createHUDLabel(id);
+            hudLabel.position.set(0, baseHeight + height + topHeight + 0.3, radius);
+            group.add(hudLabel); hudLabels.push(hudLabel);
+            mesh1.userData.hudLabel = hudLabel; mesh2.userData.hudLabel = hudLabel;
+
+            scene.add(group);
+            mesh1.userData.originalY = mesh1.position.y;
+            mesh2.userData.originalY = mesh2.position.y;
+            edges[mesh1.userData.id] = mesh1; edges[mesh2.userData.id] = mesh2;
+        }
+
+        function createSolidWall(pos, rotationY, size) {
+            const [length, height, fullThickness] = size;
+            const group = new THREE.Group();
+            group.position.set(pos[0], pos[1], pos[2]);
+            group.rotation.y = rotationY;
+            const geo = new THREE.BoxGeometry(length, height, fullThickness);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = height / 2;
+            group.add(mesh); solids.push(mesh);
+            const wireMat = new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0 });
+            const wire = new THREE.LineSegments(new THREE.EdgesGeometry(geo), wireMat);
+            wire.position.y = height / 2;
+            group.add(wire); wireframes.push(wire);
+            scene.add(group);
+        }
+
+        function createSolidCurvedWall(pos, rotationY, radius, size) {
+            const [height, fullThickness] = size;
+            const group = new THREE.Group();
+            group.position.set(pos[0], pos[1], pos[2]);
+            group.rotation.y = rotationY;
+            const arcLength = radius * Math.PI / 2;
+            const geo = new THREE.BoxGeometry(arcLength, height, fullThickness, 16, 1, 1);
+            bendGeometry(geo, radius, 0);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = height / 2;
+            group.add(mesh); solids.push(mesh);
+            const wireMat = new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0 });
+            const wire = new THREE.LineSegments(new THREE.EdgesGeometry(geo), wireMat);
+            wire.position.y = height / 2;
+            group.add(wire); wireframes.push(wire);
+            scene.add(group);
+        }
+
+        function createGate(pos, rotationY, width, height) {
+            const group = new THREE.Group();
+            group.position.set(pos[0], pos[1], pos[2]);
+            group.rotation.y = rotationY;
+
+            const matFrame = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.5, transparent: true, opacity: 0 });
+            const matSlat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4, metalness: 0.8, transparent: true, opacity: 0 });
+
+            const topDrum = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, width, 16), matFrame);
+            topDrum.rotation.z = Math.PI / 2; topDrum.position.y = height + 0.15;
+            group.add(topDrum); solids.push(topDrum);
+
+            const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, height, 0.1), matFrame);
+            leftRail.position.set(-width/2 + 0.05, height/2, 0);
+            group.add(leftRail); solids.push(leftRail);
+            const rightRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, height, 0.1), matFrame);
+            rightRail.position.set(width/2 - 0.05, height/2, 0);
+            group.add(rightRail); solids.push(rightRail);
+
+            const slatHeight = 0.06; const slatGap = 0.02;
+            const numSlats = Math.floor(height / (slatHeight + slatGap));
+            const startY = height - (slatHeight/2) - 0.05;
+            for(let i = 0; i < numSlats; i++) {
+                if (i > numSlats * 0.70) continue;
+                const slat = new THREE.Mesh(new THREE.BoxGeometry(width - 0.1, slatHeight, 0.02), matSlat);
+                slat.position.y = startY - i * (slatHeight + slatGap);
+                group.add(slat); solids.push(slat);
+            }
+
+            const bottomSlatY = startY - Math.floor(numSlats * 0.70) * (slatHeight + slatGap);
+            const bottomBar = new THREE.Mesh(new THREE.BoxGeometry(width - 0.1, 0.08, 0.04), new THREE.MeshStandardMaterial({color: 0xfacc15, roughness: 0.6, transparent: true, opacity: 0}));
+            bottomBar.position.y = bottomSlatY;
+            group.add(bottomBar); solids.push(bottomBar);
+
+            const wireMat = new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0 });
+            const topWire = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(width, 0.2, 0.2)), wireMat);
+            topWire.position.copy(topDrum.position);
+            group.add(topWire); wireframes.push(topWire);
+
+            scene.add(group);
         }
 
         function toggleFPSMode() {
@@ -1123,11 +1821,11 @@
                 document.getElementById('btn-teleport').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg><span>SAIR DO ARMAZÉM</span>`;
                 document.getElementById('instruction-container').style.opacity = '0';
 
-                gsap.to(camera.position, { x: 0, y: 0.5, z: 0, duration: 1.5, ease: "power3.inOut" });
+                gsap.to(camera.position, { x: 0, y: 0.5, z: -4, duration: 1.5, ease: "power3.inOut" });
 
                 const forward = new THREE.Vector3();
                 camera.getWorldDirection(forward);
-                gsap.to(controls.target, { x: forward.x * 0.1, y: 0.5, z: forward.z * 0.1, duration: 1.5, ease: "power3.inOut" });
+                gsap.to(controls.target, { x: forward.x * 0.1, y: 0.5, z: -4 + forward.z * 0.1, duration: 1.5, ease: "power3.inOut" });
             } else {
                 fpsUi.classList.add('hidden'); fpsUi.classList.remove('flex');
                 joystick.classList.add('hidden'); joystick.classList.remove('flex');
@@ -1137,10 +1835,10 @@
                 document.getElementById('telas-header').style.pointerEvents = 'auto';
                 document.getElementById('instruction-container').style.opacity = '1';
 
-                const targetCamY = isMobile ? 18 : 10;
-                const targetCamZ = isMobile ? 18 : 12;
+                const targetCamY = isMobile ? 36 : 28;
+                const targetCamZ = isMobile ? 22 : 12;
                 gsap.to(camera.position, { x: 0, y: targetCamY, z: targetCamZ, duration: 1.5, ease: "power3.inOut" });
-                gsap.to(controls.target, { x: 0, y: 0, z: 0, duration: 1.5, ease: "power3.inOut" });
+                gsap.to(controls.target, { x: 0, y: 0, z: -4.0, duration: 1.5, ease: "power3.inOut" });
             }
         }
 
@@ -1151,30 +1849,31 @@
 
             if (isInsideWarehouse) {
                 btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg><span>SAIR DO ARMAZÉM</span>`;
-                gsap.to(camera.position, { x: 0, y: 0.5, z: 0, duration: 1 });
-                gsap.to(controls.target, { x: 0, y: 0.5, z: -1, duration: 1 });
+                gsap.to(camera.position, { x: 0, y: 0.5, z: -4, duration: 1 });
+                gsap.to(controls.target, { x: 0, y: 0.5, z: -5, duration: 1 });
             } else {
                 btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg><span>ENTRAR NO ARMAZÉM</span>`;
-                gsap.to(camera.position, { x: 0, y: 0.5, z: 8, duration: 1 });
-                gsap.to(controls.target, { x: 0, y: 0.5, z: 0, duration: 1 });
+                gsap.to(camera.position, { x: 0, y: 0.5, z: 12, duration: 1 });
+                gsap.to(controls.target, { x: 0, y: 0.5, z: -4, duration: 1 });
             }
         }
 
         function checkCollision(newX, newZ) {
-            const limit = 15;
+            const limit = 25;
             if (newX < -limit || newX > limit || newZ < -limit || newZ > limit) return true;
 
-            const isInsideBox = (newX > -3.8 && newX < 3.8 && newZ > -4.8 && newZ < 4.8);
-            const inCutout = (newX < -1.8 && newZ < -0.8);
-            const isActuallyInside = isInsideBox && !inCutout;
+            // Main body: wide part of L-shape
+            const inMainBody = (newX > -7.0 && newX < 7.0 && newZ > -6.5 && newZ < 5.5);
+            // Extension: narrow part going south
+            const inExtension = (newX > -2.0 && newX < 7.0 && newZ > -15.0 && newZ < -6.5);
+            const isInside = inMainBody || inExtension;
 
             if (isInsideWarehouse) {
-                return !isActuallyInside;
+                return !isInside;
             } else {
-                const outerBox = (newX > -4.2 && newX < 4.2 && newZ > -5.2 && newZ < 5.2);
-                const outerCutout = (newX < -2.2 && newZ < -1.2);
-                const isTouchingOuterWalls = outerBox && !outerCutout;
-                return isTouchingOuterWalls;
+                const inMainOuter = (newX > -8.0 && newX < 8.0 && newZ > -7.5 && newZ < 7.0);
+                const inExtOuter = (newX > -3.0 && newX < 8.0 && newZ > -16.0 && newZ < -7.5);
+                return inMainOuter || inExtOuter;
             }
         }
 
@@ -1262,8 +1961,8 @@
 
         function playCinematicIntro() {
             const isMobile = window.innerWidth < 768;
-            const targetCamY = isMobile ? 18 : 10;
-            const targetCamZ = isMobile ? 18 : 12;
+            const targetCamY = isMobile ? 36 : 19;
+            const targetCamZ = isMobile ? 22 : 5;
 
             const tl = gsap.timeline({
                 onComplete: () => {
@@ -1275,13 +1974,19 @@
 
             tl.to(wireframes.map(w => w.material), { opacity: 1, duration: 0.05, stagger: 0.03, ease: "none" }, "+=0.3");
             tl.to({}, { duration: 0.4 });
-            tl.to(camera.position, { x: 0, y: targetCamY, z: targetCamZ, duration: 2.2, ease: "power3.inOut", onUpdate: () => { camera.lookAt(0, 0, 0); } }, "flyIn");
+            tl.to(camera.position, { x: 0, y: targetCamY, z: targetCamZ, duration: 2.2, ease: "power3.inOut", onUpdate: () => { camera.lookAt(0, 0, -4.0); } }, "flyIn");
             tl.to(wireframes.map(w => w.material), { opacity: 0, duration: 0.8 }, "flyIn+=1.2");
             tl.to(solids.map(s => s.material), { opacity: 1, duration: 0.8 }, "flyIn+=1.2");
             tl.to(hudLabels.map(l => l.material), { opacity: 1, duration: 0.8 }, "flyIn+=1.2");
-            tl.to(epoxyPlane.material, { opacity: 0.8, duration: 0.8 }, "flyIn+=1.2");
+            tl.to(epoxyPlane.material, { opacity: 1, duration: 0.8 }, "flyIn+=1.2");
+            tl.to(sidewalkPlane.material, { opacity: 1, duration: 0.8 }, "flyIn+=1.2");
+            // telhado removido
 
-            tl.call(() => { wireframes.forEach(w => w.visible = false); if(floorMirror) floorMirror.visible = true; }, [], "flyIn+=1.2");
+            forkliftMeshes.forEach(m => {
+                tl.to(m.material, { opacity: m.userData.originalOpacity || 1, duration: 0.8 }, "flyIn+=1.2");
+            });
+
+            tl.call(() => { wireframes.forEach(w => w.visible = false); }, [], "flyIn+=1.2");
             tl.to(".ui-element", { opacity: 1, duration: 1, stagger: 0.15, ease: "power2.out" }, "-=0.3");
         }
 
@@ -1370,6 +2075,53 @@
                 });
             }
 
+            // ANIMACAO DAS EMPILHADEIRAS
+            forklifts.forEach(fl => {
+                if (fl.userData.siren) {
+                    fl.userData.siren.material.emissiveIntensity = (Math.sin(time * 8.0) > 0) ? 1.5 : 0;
+                }
+                if (fl.userData.state === 'moving') {
+                    const dir = new THREE.Vector3().subVectors(fl.userData.target, fl.position);
+                    dir.y = 0;
+                    const dist = dir.length();
+                    if (dist < 0.2) {
+                        fl.userData.state = 'waiting';
+                        fl.userData.waitTime = 60 + Math.random() * 100;
+                    } else {
+                        dir.normalize();
+                        raycaster.set(new THREE.Vector3(fl.position.x, 0.5, fl.position.z), dir);
+                        let intersects = raycaster.intersectObjects(solids, true);
+                        if (intersects.length > 0 && intersects[0].distance < 2.5) {
+                            fl.userData.target = getSafeWarehouseTarget(); return;
+                        }
+                        let futurePos = fl.position.clone().add(dir.clone().multiplyScalar(fl.userData.speed));
+                        let willCrash = false;
+                        for(let j = 0; j < forklifts.length; j++) {
+                            if (fl !== forklifts[j] && futurePos.distanceTo(forklifts[j].position) < 2.8 && futurePos.distanceTo(forklifts[j].position) < fl.position.distanceTo(forklifts[j].position)) {
+                                willCrash = true; break;
+                            }
+                        }
+                        if (willCrash) {
+                            fl.userData.state = 'waiting';
+                            fl.userData.waitTime = 40 + Math.random() * 60;
+                            fl.userData.target = getSafeWarehouseTarget(); return;
+                        }
+                        fl.position.copy(futurePos);
+                        const targetAngle = Math.atan2(dir.x, dir.z);
+                        let diff = targetAngle - fl.rotation.y;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        fl.rotation.y += diff * 0.1;
+                    }
+                } else if (fl.userData.state === 'waiting') {
+                    fl.userData.waitTime--;
+                    if (fl.userData.waitTime <= 0) {
+                        fl.userData.target = getSafeWarehouseTarget();
+                        fl.userData.state = 'moving';
+                    }
+                }
+            });
+
             for (let i = explosions.length - 1; i >= 0; i--) {
                 let exp = explosions[i];
                 let positions = exp.mesh.geometry.attributes.position.array;
@@ -1386,7 +2138,6 @@
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
-            if(floorMirror) { floorMirror.getRenderTarget().setSize( window.innerWidth / 2, window.innerHeight / 2 ); }
         }
 
         // ─── GRID 5x5 DE TELA ───
@@ -2240,6 +2991,850 @@
                     <button onclick="removeDayCollab('${n}')" class="ml-0.5 hover:text-[#151515] transition-colors text-[14px] leading-none">&times;</button>
                 </span>`;
             }).join('');
+        }
+
+        // ─── VISUALIZACAO 3D: MAPA DE CALOR, FILTRO, TIMELINE ───
+
+        let heatmapActive = false;
+        let heatmapOriginalColors = new Map();
+        let currentFilter = 'all';
+        let timelineInterval = null;
+
+        function getEdgeProgress(mesh) {
+            const filled = (mesh.userData.filledCells || []).filter(Boolean).length;
+            const saved = (mesh.userData.savedCells || []).filter(Boolean).length;
+            return Math.round(((filled + saved) / 25) * 100);
+        }
+
+        // --- MAPA DE CALOR ---
+        function toggleHeatmap() {
+            heatmapActive = !heatmapActive;
+            const btn = document.getElementById('btn-heatmap');
+            const legend = document.getElementById('heatmap-legend');
+
+            if (heatmapActive) {
+                btn.classList.add('bg-orange-100', 'border-orange-300', 'text-orange-600');
+                btn.classList.remove('bg-white/90', 'text-gray-500');
+                legend.classList.remove('hidden');
+                applyHeatmap();
+            } else {
+                btn.classList.remove('bg-orange-100', 'border-orange-300', 'text-orange-600');
+                btn.classList.add('bg-white/90', 'text-gray-500');
+                legend.classList.add('hidden');
+                removeHeatmap();
+            }
+        }
+
+        function applyHeatmap() {
+            heatmapOriginalColors.clear();
+            Object.keys(edges).forEach(key => {
+                const mesh = edges[key];
+                const pct = getEdgeProgress(mesh);
+                const hud = mesh.userData.hudLabel;
+
+                // Salvar cor original do HUD
+                if (hud) heatmapOriginalColors.set(key + '_hud', hud.material.map.clone());
+
+                // Cor do HUD baseada no progresso
+                if (hud) {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = 128; canvas.height = 128;
+                    const num = key.replace('TELA ', '').replace(' (INTERNA)', '').replace(' (EXTERNA)', '');
+
+                    // Cor de fundo baseada em progresso
+                    let bgColor;
+                    if (pct === 100) bgColor = '#16a34a';
+                    else if (pct > 50) bgColor = '#ca8a04';
+                    else if (pct > 0) bgColor = '#ea580c';
+                    else bgColor = '#dc2626';
+
+                    ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 15;
+                    ctx.shadowOffsetY = 6;
+                    ctx.beginPath(); ctx.arc(64, 64, 38, 0, Math.PI * 2);
+                    ctx.fillStyle = bgColor; ctx.fill();
+
+                    ctx.shadowColor = 'transparent';
+                    ctx.beginPath(); ctx.arc(64, 64, 34, 0, Math.PI * 2);
+                    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.stroke();
+
+                    ctx.font = "800 32px 'Inter', sans-serif"; ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(num, 64, 58);
+                    ctx.font = "700 14px 'Inter', sans-serif";
+                    ctx.fillText(pct + '%', 64, 80);
+
+                    const tex = new THREE.CanvasTexture(canvas);
+                    tex.minFilter = THREE.LinearFilter;
+                    hud.material.map = tex;
+                    hud.material.needsUpdate = true;
+                }
+            });
+        }
+
+        function removeHeatmap() {
+            Object.keys(edges).forEach(key => {
+                const mesh = edges[key];
+                const hud = mesh.userData.hudLabel;
+                if (hud) {
+                    const origTex = heatmapOriginalColors.get(key + '_hud');
+                    if (origTex) {
+                        hud.material.map = origTex;
+                        hud.material.needsUpdate = true;
+                    }
+                }
+            });
+            heatmapOriginalColors.clear();
+        }
+
+        // --- FILTRO POR STATUS ---
+        function toggleFilterMenu() {
+            const menu = document.getElementById('filter-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        function filterTelas(mode) {
+            currentFilter = mode;
+            document.getElementById('filter-menu').classList.add('hidden');
+
+            const btn = document.getElementById('btn-filter');
+            if (mode !== 'all') {
+                btn.classList.add('bg-blue-100', 'border-blue-300', 'text-blue-600');
+                btn.classList.remove('bg-white/90', 'text-gray-500');
+            } else {
+                btn.classList.remove('bg-blue-100', 'border-blue-300', 'text-blue-600');
+                btn.classList.add('bg-white/90', 'text-gray-500');
+            }
+
+            Object.keys(edges).forEach(key => {
+                const mesh = edges[key];
+                const pct = getEdgeProgress(mesh);
+                const hud = mesh.userData.hudLabel;
+                let visible = true;
+
+                if (mode === 'clean') visible = (pct === 100);
+                else if (mode === 'partial') visible = (pct > 0 && pct < 100);
+                else if (mode === 'dirty') visible = (pct === 0);
+
+                // Fade opacity
+                const targetOpacity = visible ? 1 : 0.08;
+                gsap.to(mesh.material, { opacity: targetOpacity, duration: 0.4 });
+                if (hud) gsap.to(hud.material, { opacity: visible ? 1 : 0.1, duration: 0.4 });
+            });
+        }
+
+        // --- TIMELINE ANIMADA DO DIA ---
+        function playDayTimeline() {
+            // Coletar historico do dia
+            const todayStr = new Date().toISOString().split('T')[0];
+            let dayEvents = [];
+
+            Object.keys(edges).forEach(key => {
+                const mesh = edges[key];
+                const history = mesh.userData.cleanHistory || [];
+                history.forEach(h => {
+                    if (h.date && h.date.startsWith(todayStr)) {
+                        dayEvents.push({ key, ...h });
+                    }
+                });
+            });
+
+            dayEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            if (dayEvents.length === 0) {
+                // Sem eventos hoje - mostrar mensagem
+                const overlay = document.getElementById('timeline-overlay');
+                overlay.classList.remove('hidden');
+                document.getElementById('timeline-current').textContent = '0/0';
+                document.getElementById('timeline-bar').style.width = '0%';
+                document.getElementById('timeline-info').textContent = 'Nenhuma limpeza registrada hoje';
+                setTimeout(() => overlay.classList.add('hidden'), 3000);
+                return;
+            }
+
+            // Reset: todas as telas ficam escuras
+            Object.keys(edges).forEach(key => {
+                const mesh = edges[key];
+                gsap.to(mesh.material, { opacity: 0.15, duration: 0.3 });
+                if (mesh.userData.hudLabel) gsap.to(mesh.userData.hudLabel.material, { opacity: 0.15, duration: 0.3 });
+            });
+
+            const overlay = document.getElementById('timeline-overlay');
+            overlay.classList.remove('hidden');
+
+            let idx = 0;
+            function showNext() {
+                if (idx >= dayEvents.length) {
+                    // Finalizado: restaurar tudo
+                    setTimeout(() => {
+                        Object.keys(edges).forEach(key => {
+                            const mesh = edges[key];
+                            const targetOp = currentFilter === 'all' ? 1 : (getEdgeProgress(mesh) > 0 ? 1 : 0.08);
+                            gsap.to(mesh.material, { opacity: targetOp, duration: 0.5 });
+                            if (mesh.userData.hudLabel) gsap.to(mesh.userData.hudLabel.material, { opacity: targetOp, duration: 0.5 });
+                        });
+                        overlay.classList.add('hidden');
+                        timelineInterval = null;
+                    }, 1500);
+                    return;
+                }
+
+                const ev = dayEvents[idx];
+                const mesh = edges[ev.key];
+                if (mesh) {
+                    // Acender esta tela
+                    gsap.to(mesh.material, { opacity: 1, duration: 0.3 });
+                    if (mesh.userData.hudLabel) gsap.to(mesh.userData.hudLabel.material, { opacity: 1, duration: 0.3 });
+
+                    // Efeito de escala
+                    const origY = mesh.userData.originalY || mesh.position.y;
+                    gsap.fromTo(mesh.position, { y: origY }, { y: origY + 0.3, duration: 0.3, yoyo: true, repeat: 1 });
+                }
+
+                const d = new Date(ev.date);
+                const timeStr = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+
+                document.getElementById('timeline-current').textContent = (idx + 1) + '/' + dayEvents.length;
+                document.getElementById('timeline-bar').style.width = (((idx + 1) / dayEvents.length) * 100) + '%';
+                document.getElementById('timeline-info').textContent = timeStr + ' - ' + ev.key + ' por ' + (ev.who || '?');
+
+                idx++;
+                timelineInterval = setTimeout(showNext, 1200);
+            }
+
+            showNext();
+        }
+
+        function stopDayTimeline() {
+            if (timelineInterval) { clearTimeout(timelineInterval); timelineInterval = null; }
+            document.getElementById('timeline-overlay').classList.add('hidden');
+
+            // Restaurar opacidades
+            Object.keys(edges).forEach(key => {
+                const mesh = edges[key];
+                gsap.to(mesh.material, { opacity: 1, duration: 0.4 });
+                if (mesh.userData.hudLabel) gsap.to(mesh.userData.hudLabel.material, { opacity: 1, duration: 0.4 });
+            });
+
+            if (currentFilter !== 'all') filterTelas(currentFilter);
+        }
+
+        // Fechar filter menu ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#btn-filter') && !e.target.closest('#filter-menu')) {
+                document.getElementById('filter-menu')?.classList.add('hidden');
+            }
+        });
+
+        // ─── HISTORICO COMPLETO ───
+
+        let compareMonthOffset = 0;
+        let retroMonthOffset = 0;
+        let currentHistoryTab = 'log';
+
+        function getAllCleaningEntries() {
+            let all = [];
+            Object.keys(edges).forEach(key => {
+                const mesh = edges[key];
+                (mesh.userData.cleanHistory || []).forEach(h => {
+                    all.push({ telaKey: key, ...h });
+                });
+            });
+            all.sort((a, b) => new Date(b.date) - new Date(a.date));
+            return all;
+        }
+
+        function openHistoryDashboard() {
+            document.getElementById('history-dashboard').classList.remove('hidden');
+            populateHistoryFilters();
+            switchHistoryTab('log');
+        }
+
+        function closeHistoryDashboard() {
+            document.getElementById('history-dashboard').classList.add('hidden');
+        }
+
+        function switchHistoryTab(tab) {
+            currentHistoryTab = tab;
+            ['log', 'compare', 'calendar'].forEach(t => {
+                document.getElementById('history-tab-' + t).classList.toggle('hidden', t !== tab);
+                ['htab-' + t, 'htab-' + t + '-m'].forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (!btn) return;
+                    if (t === tab) { btn.classList.add('bg-white', 'shadow-sm', 'text-gray-900'); btn.classList.remove('text-gray-500'); }
+                    else { btn.classList.remove('bg-white', 'shadow-sm', 'text-gray-900'); btn.classList.add('text-gray-500'); }
+                });
+            });
+            if (tab === 'log') renderHistoryLog();
+            else if (tab === 'compare') renderCompare();
+            else if (tab === 'calendar') renderRetroCalendar();
+        }
+
+        function populateHistoryFilters() {
+            const all = getAllCleaningEntries();
+            // Telas
+            const telaSelect = document.getElementById('hlog-filter-tela');
+            const current = telaSelect.value;
+            telaSelect.innerHTML = '<option value="all">Todas as Telas</option>';
+            const telaNames = [...new Set(all.map(e => e.telaKey))].sort();
+            telaNames.forEach(t => { telaSelect.innerHTML += `<option value="${t}">${t}</option>`; });
+            telaSelect.value = current || 'all';
+            // Responsaveis
+            const whoSelect = document.getElementById('hlog-filter-who');
+            const currentWho = whoSelect.value;
+            whoSelect.innerHTML = '<option value="all">Todos</option>';
+            const whos = [...new Set(all.map(e => e.who).filter(Boolean))].sort();
+            whos.forEach(w => { whoSelect.innerHTML += `<option value="${w}">${w}</option>`; });
+            whoSelect.value = currentWho || 'all';
+        }
+
+        function renderHistoryLog() {
+            let entries = getAllCleaningEntries();
+            const telaFilter = document.getElementById('hlog-filter-tela').value;
+            const whoFilter = document.getElementById('hlog-filter-who').value;
+            const fromDate = document.getElementById('hlog-filter-from').value;
+            const toDate = document.getElementById('hlog-filter-to').value;
+
+            if (telaFilter !== 'all') entries = entries.filter(e => e.telaKey === telaFilter);
+            if (whoFilter !== 'all') entries = entries.filter(e => e.who === whoFilter);
+            if (fromDate) entries = entries.filter(e => e.date >= fromDate);
+            if (toDate) entries = entries.filter(e => e.date <= toDate + 'T23:59:59');
+
+            const tbody = document.getElementById('hlog-tbody');
+            const empty = document.getElementById('hlog-empty');
+            document.getElementById('hlog-count').textContent = entries.length + ' registros';
+
+            if (entries.length === 0) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
+            empty.classList.add('hidden');
+
+            tbody.innerHTML = entries.slice(0, 200).map(h => {
+                const d = new Date(h.date);
+                const dateStr = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+                const pctColor = h.pct === 100 ? 'text-emerald-600 bg-emerald-50' : h.pct > 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
+                const grid = h.gridSnapshot ? renderMiniGrid(h.gridSnapshot) : '';
+                return `<tr class="hover:bg-gray-50 transition-colors">
+                    <td class="py-2.5 pr-3 text-gray-500 whitespace-nowrap">${dateStr}</td>
+                    <td class="py-2.5 pr-3 font-bold text-gray-800">${h.telaKey}</td>
+                    <td class="py-2.5 pr-3 text-gray-600 font-semibold">${h.who || '--'}</td>
+                    <td class="py-2.5 pr-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-black ${pctColor}">${h.pct}%</span></td>
+                    <td class="py-2.5 pr-3 text-gray-500">${h.cells}/25</td>
+                    <td class="py-2.5">${grid}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderMiniGrid(snapshot) {
+            if (!snapshot || snapshot.length !== 25) return '';
+            let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;width:30px;height:24px;">';
+            for (let i = 0; i < 25; i++) {
+                const c = snapshot[i] ? '#22c55e' : '#fecaca';
+                html += `<div style="background:${c};border-radius:1px;"></div>`;
+            }
+            return html + '</div>';
+        }
+
+        // --- COMPARATIVO MES A MES ---
+        const MONTH_NAMES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+        function changeCompareMonth(delta) { compareMonthOffset += delta; renderCompare(); }
+
+        function renderCompare() {
+            const now = new Date();
+            const m1 = new Date(now.getFullYear(), now.getMonth() + compareMonthOffset, 1);
+            const m2 = new Date(now.getFullYear(), now.getMonth() + compareMonthOffset - 1, 1);
+
+            document.getElementById('compare-title').textContent = MONTH_NAMES[m1.getMonth()] + ' ' + m1.getFullYear() + ' vs ' + MONTH_NAMES[m2.getMonth()] + ' ' + m2.getFullYear();
+
+            const all = getAllCleaningEntries();
+            const monthKey = (d) => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+            const mk1 = monthKey(m1), mk2 = monthKey(m2);
+
+            const e1 = all.filter(e => e.date.startsWith(mk1));
+            const e2 = all.filter(e => e.date.startsWith(mk2));
+
+            function buildCard(entries, month, year) {
+                const total = entries.length;
+                const unique = new Set(entries.map(e => e.telaKey)).size;
+                const people = new Set(entries.map(e => e.who).filter(Boolean)).size;
+                const avgPct = total > 0 ? Math.round(entries.reduce((s,e) => s + e.pct, 0) / total) : 0;
+                return `
+                    <h4 class="text-sm font-black text-gray-800 mb-3">${MONTH_NAMES[month]} ${year}</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-white rounded-xl p-3 text-center border border-gray-100">
+                            <p class="text-2xl font-black text-violet-700">${total}</p>
+                            <p class="text-[9px] font-bold text-gray-400 uppercase">Limpezas</p>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center border border-gray-100">
+                            <p class="text-2xl font-black text-blue-700">${unique}</p>
+                            <p class="text-[9px] font-bold text-gray-400 uppercase">Telas</p>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center border border-gray-100">
+                            <p class="text-2xl font-black text-emerald-700">${avgPct}%</p>
+                            <p class="text-[9px] font-bold text-gray-400 uppercase">Media</p>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center border border-gray-100">
+                            <p class="text-2xl font-black text-amber-700">${people}</p>
+                            <p class="text-[9px] font-bold text-gray-400 uppercase">Pessoas</p>
+                        </div>
+                    </div>`;
+            }
+
+            document.getElementById('compare-left').innerHTML = buildCard(e1, m1.getMonth(), m1.getFullYear());
+            document.getElementById('compare-right').innerHTML = buildCard(e2, m2.getMonth(), m2.getFullYear());
+
+            // Barras por tela comparando os dois meses
+            const telaNames = [...new Set([...e1, ...e2].map(e => e.telaKey))].sort();
+            const bars = document.getElementById('compare-bars');
+            if (telaNames.length === 0) { bars.innerHTML = '<p class="text-center text-sm text-gray-400 py-6">Sem dados para comparar</p>'; return; }
+
+            bars.innerHTML = telaNames.map(t => {
+                const c1 = e1.filter(e => e.telaKey === t).length;
+                const c2 = e2.filter(e => e.telaKey === t).length;
+                const max = Math.max(c1, c2, 1);
+                return `<div class="flex items-center gap-2">
+                    <span class="text-[9px] font-bold text-gray-500 w-[120px] truncate flex-shrink-0">${t}</span>
+                    <div class="flex-1 flex gap-1 items-center">
+                        <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div class="bg-violet-500 h-full rounded-full" style="width:${(c1/max)*100}%"></div></div>
+                        <span class="text-[9px] font-black text-violet-600 w-4 text-right">${c1}</span>
+                        <span class="text-[8px] text-gray-300">|</span>
+                        <span class="text-[9px] font-black text-gray-400 w-4">${c2}</span>
+                        <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div class="bg-gray-400 h-full rounded-full" style="width:${(c2/max)*100}%"></div></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // --- CALENDARIO RETROATIVO ---
+        function changeRetroMonth(delta) { retroMonthOffset += delta; renderRetroCalendar(); }
+
+        function renderRetroCalendar() {
+            const now = new Date();
+            const month = new Date(now.getFullYear(), now.getMonth() + retroMonthOffset, 1);
+            const year = month.getFullYear(), m = month.getMonth();
+            document.getElementById('retro-month-title').textContent = MONTH_NAMES[m] + ' ' + year;
+
+            const all = getAllCleaningEntries();
+            // Agrupar por dia
+            const dayMap = {};
+            all.forEach(e => {
+                const dk = e.date.substring(0, 10);
+                if (!dayMap[dk]) dayMap[dk] = [];
+                dayMap[dk].push(e);
+            });
+
+            const firstDay = new Date(year, m, 1).getDay();
+            const daysInMonth = new Date(year, m + 1, 0).getDate();
+            const todayKey = telasLocalDateKey(new Date());
+
+            const grid = document.getElementById('retro-calendar-grid');
+            let html = '';
+
+            // Espacos vazios antes do dia 1
+            for (let i = 0; i < firstDay; i++) html += '<div></div>';
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dk = year + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+                const count = (dayMap[dk] || []).length;
+                const isToday = dk === todayKey;
+                const hasData = count > 0;
+
+                let bg = 'bg-gray-50 text-gray-400';
+                if (hasData) bg = count >= 5 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+                if (isToday) bg += ' ring-2 ring-violet-400';
+
+                html += `<button onclick="showRetroDay('${dk}')" class="relative rounded-xl p-1.5 border border-transparent ${bg} hover:scale-105 transition-all text-center min-h-[44px] flex flex-col items-center justify-center">
+                    <span class="text-xs font-black">${d}</span>
+                    ${hasData ? `<span class="text-[8px] font-bold mt-0.5">${count}</span>` : ''}
+                    ${hasData ? `<div class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${count >= 5 ? 'bg-emerald-500' : 'bg-amber-400'}"></div>` : ''}
+                </button>`;
+            }
+            grid.innerHTML = html;
+            document.getElementById('retro-day-detail').classList.add('hidden');
+        }
+
+        function showRetroDay(dateKey) {
+            const all = getAllCleaningEntries();
+            const dayEntries = all.filter(e => e.date.startsWith(dateKey));
+
+            const parts = dateKey.split('-');
+            const title = parts[2] + ' de ' + MONTH_NAMES[parseInt(parts[1])-1] + ' de ' + parts[0];
+            document.getElementById('retro-day-title').textContent = title;
+
+            const detail = document.getElementById('retro-day-detail');
+            const list = document.getElementById('retro-day-list');
+            const empty = document.getElementById('retro-day-empty');
+            detail.classList.remove('hidden');
+
+            if (dayEntries.length === 0) {
+                list.innerHTML = ''; empty.classList.remove('hidden'); return;
+            }
+            empty.classList.add('hidden');
+
+            list.innerHTML = dayEntries.map(h => {
+                const d = new Date(h.date);
+                const time = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+                const pctColor = h.pct === 100 ? 'bg-emerald-100 text-emerald-700' : h.pct > 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+                const grid = h.gridSnapshot ? renderMiniGrid(h.gridSnapshot) : '';
+                return `<div class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+                    <div class="flex-shrink-0 text-center">
+                        <p class="text-xs font-black text-gray-800">${time}</p>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-gray-800 truncate">${h.telaKey}</p>
+                        <p class="text-[10px] text-gray-500">${h.who || '--'}</p>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${pctColor} flex-shrink-0">${h.pct}%</span>
+                    <div class="flex-shrink-0">${grid}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // ─── RELATORIOS & METRICAS ───
+
+        function openReportsDashboard() {
+            const dash = document.getElementById('reports-dashboard');
+            dash.classList.remove('hidden');
+            buildReportData();
+            capture3DSnapshot();
+        }
+
+        function closeReportsDashboard() {
+            document.getElementById('reports-dashboard').classList.add('hidden');
+        }
+
+        function getTelaMetrics() {
+            const metrics = [];
+            const allEdgeKeys = Object.keys(edges);
+            const telaGroups = {};
+
+            allEdgeKeys.forEach(key => {
+                const mesh = edges[key];
+                const telaName = key.replace(' (INTERNA)', '').replace(' (EXTERNA)', '');
+                const side = key.includes('(INTERNA)') ? 'INTERNA' : 'EXTERNA';
+                if (!telaGroups[telaName]) telaGroups[telaName] = {};
+                telaGroups[telaName][side] = mesh;
+            });
+
+            Object.keys(telaGroups).sort((a, b) => {
+                const na = parseInt(a.replace('TELA ', ''));
+                const nb = parseInt(b.replace('TELA ', ''));
+                return na - nb;
+            }).forEach(telaName => {
+                const sides = telaGroups[telaName];
+                ['INTERNA', 'EXTERNA'].forEach(side => {
+                    const mesh = sides[side];
+                    if (!mesh) return;
+                    const key = telaName + ' (' + side + ')';
+                    const filledCells = mesh.userData.filledCells || new Array(25).fill(false);
+                    const savedCells = mesh.userData.savedCells || new Array(25).fill(false);
+                    const filled = filledCells.filter(Boolean).length + savedCells.filter(Boolean).length;
+                    const pct = Math.round((filled / 25) * 100);
+                    const history = mesh.userData.cleanHistory || [];
+                    const lastClean = history.length > 0 ? new Date(history[history.length - 1].date) : null;
+
+                    let avgDaysBetween = null;
+                    if (history.length >= 2) {
+                        let totalDiff = 0;
+                        for (let i = 1; i < history.length; i++) {
+                            const d1 = new Date(history[i - 1].date);
+                            const d2 = new Date(history[i].date);
+                            totalDiff += (d2 - d1) / (1000 * 60 * 60 * 24);
+                        }
+                        avgDaysBetween = Math.round(totalDiff / (history.length - 1));
+                    }
+
+                    const daysSinceClean = lastClean ? Math.floor((Date.now() - lastClean) / (1000 * 60 * 60 * 24)) : null;
+
+                    metrics.push({
+                        key, telaName, side, pct, filled,
+                        totalCells: 25, history, lastClean,
+                        avgDaysBetween, daysSinceClean
+                    });
+                });
+            });
+            return metrics;
+        }
+
+        function buildReportData() {
+            const metrics = getTelaMetrics();
+            const total = metrics.length;
+            const fullyClean = metrics.filter(m => m.pct === 100).length;
+            const totalPct = total > 0 ? Math.round(metrics.reduce((s, m) => s + m.pct, 0) / total) : 0;
+
+            // KPI: Progresso geral
+            document.getElementById('rpt-progress-total').textContent = totalPct + '%';
+            document.getElementById('rpt-progress-sub').textContent = fullyClean + '/' + total + ' superficies';
+
+            // KPI: Limpas hoje
+            const todayStr = new Date().toISOString().split('T')[0];
+            let cleanedToday = 0;
+            metrics.forEach(m => {
+                m.history.forEach(h => {
+                    if (h.date && h.date.startsWith(todayStr)) cleanedToday++;
+                });
+            });
+            document.getElementById('rpt-cleaned-today').textContent = cleanedToday;
+            document.getElementById('rpt-cleaned-today-sub').textContent = cleanedToday === 1 ? 'superficie' : 'superficies';
+
+            // KPI: Tempo medio
+            const withAvg = metrics.filter(m => m.avgDaysBetween !== null);
+            if (withAvg.length > 0) {
+                const globalAvg = Math.round(withAvg.reduce((s, m) => s + m.avgDaysBetween, 0) / withAvg.length);
+                document.getElementById('rpt-avg-time').textContent = globalAvg + 'd';
+            } else {
+                document.getElementById('rpt-avg-time').textContent = '--';
+            }
+
+            // KPI: Negligenciadas (pct == 0 OU sem limpeza ha mais de 7 dias)
+            const neglected = metrics.filter(m => {
+                if (m.pct === 0 && m.history.length === 0) return true;
+                if (m.daysSinceClean !== null && m.daysSinceClean > 7) return true;
+                return false;
+            });
+            document.getElementById('rpt-neglected').textContent = neglected.length;
+
+            // Barras por tela
+            const barsContainer = document.getElementById('rpt-bars-container');
+            barsContainer.innerHTML = '';
+            metrics.forEach(m => {
+                const barColor = m.pct === 100 ? 'bg-emerald-500' : m.pct > 0 ? 'bg-amber-400' : 'bg-red-400';
+                const textColor = m.pct === 100 ? 'text-emerald-700' : m.pct > 0 ? 'text-amber-700' : 'text-red-600';
+                barsContainer.innerHTML += `
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-gray-500 w-[130px] sm:w-[160px] truncate flex-shrink-0">${m.key}</span>
+                        <div class="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                            <div class="${barColor} h-full rounded-full transition-all" style="width:${m.pct}%;min-width:${m.pct > 0 ? '4px' : '0'}"></div>
+                        </div>
+                        <span class="text-[10px] font-black ${textColor} w-[36px] text-right flex-shrink-0">${m.pct}%</span>
+                    </div>`;
+            });
+
+            // Lista de negligenciadas
+            const neglectedList = document.getElementById('rpt-neglected-list');
+            const neglectedEmpty = document.getElementById('rpt-neglected-empty');
+            neglectedList.innerHTML = '';
+            if (neglected.length === 0) {
+                neglectedEmpty.classList.remove('hidden');
+            } else {
+                neglectedEmpty.classList.add('hidden');
+                neglected.forEach(m => {
+                    const reason = m.history.length === 0
+                        ? 'Nunca foi limpa'
+                        : 'Ultima limpeza ha ' + m.daysSinceClean + ' dias';
+                    neglectedList.innerHTML += `
+                        <div class="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-black text-red-800">${m.key}</p>
+                                    <p class="text-[10px] text-red-500 font-semibold">${reason}</p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-black text-red-700">${m.pct}%</span>
+                        </div>`;
+                });
+            }
+
+            // Tabela de historico recente
+            const tbody = document.getElementById('rpt-history-tbody');
+            const historyEmpty = document.getElementById('rpt-history-empty');
+            let allHistory = [];
+            metrics.forEach(m => {
+                m.history.forEach(h => {
+                    allHistory.push({ ...h, telaKey: m.key });
+                });
+            });
+            allHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+            allHistory = allHistory.slice(0, 50);
+
+            tbody.innerHTML = '';
+            if (allHistory.length === 0) {
+                historyEmpty.classList.remove('hidden');
+            } else {
+                historyEmpty.classList.add('hidden');
+                allHistory.forEach(h => {
+                    const d = new Date(h.date);
+                    const dateStr = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+                    const pctColor = h.pct === 100 ? 'text-emerald-600 bg-emerald-50' : h.pct > 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="py-2 pr-3 font-bold text-gray-800">${h.telaKey}</td>
+                            <td class="py-2 pr-3 text-gray-500">${dateStr}</td>
+                            <td class="py-2 pr-3 text-gray-600 font-semibold">${h.who || '--'}</td>
+                            <td class="py-2 pr-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-black ${pctColor}">${h.pct}%</span></td>
+                            <td class="py-2 text-gray-500">${h.cells}/25</td>
+                        </tr>`;
+                });
+            }
+        }
+
+        function capture3DSnapshot() {
+            try {
+                const savedPos = camera.position.clone();
+                const savedTarget = controls.target.clone();
+
+                const views = [
+                    { id: 'rpt-3d-v1', pos: [-20, 10, 8],     target: [0, 0, -4]  },  // Frente esquerda
+                    { id: 'rpt-3d-v2', pos: [20, 8, 8],       target: [0, 0, -4]  },  // Frente direita
+                    { id: 'rpt-3d-v3', pos: [0, 8, 18],       target: [0, 0, -2]  },  // Frente interna
+                    { id: 'rpt-3d-v4', pos: [-15, 14, -22],   target: [0, 0, -6]  },  // Tras interna
+                    { id: 'rpt-3d-v5', pos: [-2, 40, -4],     target: [-2, 0, -4] },  // Vista superior
+                ];
+
+                views.forEach(v => {
+                    camera.position.set(...v.pos);
+                    camera.lookAt(...v.target);
+                    camera.updateProjectionMatrix();
+                    renderer.render(scene, camera);
+
+                    const srcCanvas = renderer.domElement;
+                    const destCanvas = document.getElementById(v.id);
+                    if (destCanvas) {
+                        destCanvas.width = srcCanvas.width;
+                        destCanvas.height = srcCanvas.height;
+                        destCanvas.getContext('2d').drawImage(srcCanvas, 0, 0);
+                    }
+                });
+
+                // Restaurar camera
+                camera.position.copy(savedPos);
+                controls.target.copy(savedTarget);
+                camera.lookAt(savedTarget.x, savedTarget.y, savedTarget.z);
+                camera.updateProjectionMatrix();
+                renderer.render(scene, camera);
+            } catch(e) { console.warn('Snapshot 3D falhou:', e); }
+        }
+
+        function exportReportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageW = doc.internal.pageSize.getWidth();
+            const now = new Date();
+            const dateStr = String(now.getDate()).padStart(2,'0') + '/' + String(now.getMonth()+1).padStart(2,'0') + '/' + now.getFullYear();
+
+            // Header
+            doc.setFillColor(30, 41, 59);
+            doc.rect(0, 0, pageW, 28, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Relatorio de Telas - CalendarioDPA', 14, 14);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text('Gerado em: ' + dateStr, 14, 22);
+
+            // KPIs
+            const metrics = getTelaMetrics();
+            const total = metrics.length;
+            const fullyClean = metrics.filter(m => m.pct === 100).length;
+            const totalPct = total > 0 ? Math.round(metrics.reduce((s, m) => s + m.pct, 0) / total) : 0;
+
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('Resumo Geral', 14, 38);
+
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text('Progresso geral: ' + totalPct + '%', 14, 46);
+            doc.text('Superficies limpas: ' + fullyClean + '/' + total, 14, 52);
+
+            const neglected = metrics.filter(m => (m.pct === 0 && m.history.length === 0) || (m.daysSinceClean !== null && m.daysSinceClean > 7));
+            doc.text('Telas negligenciadas: ' + neglected.length, 14, 58);
+
+            // Tabela de progresso por tela
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('Progresso por Superficie', 14, 70);
+
+            const tableData = metrics.map(m => [
+                m.key,
+                m.pct + '%',
+                m.filled + '/25',
+                m.lastClean ? (String(m.lastClean.getDate()).padStart(2,'0') + '/' + String(m.lastClean.getMonth()+1).padStart(2,'0')) : 'Nunca',
+                m.avgDaysBetween !== null ? m.avgDaysBetween + ' dias' : '--'
+            ]);
+
+            doc.autoTable({
+                startY: 75,
+                head: [['Tela', 'Progresso', 'Celulas', 'Ult. Limpeza', 'Freq. Media']],
+                body: tableData,
+                styles: { fontSize: 7, cellPadding: 2 },
+                headStyles: { fillColor: [228, 30, 38], textColor: 255, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                didParseCell: function(data) {
+                    if (data.column.index === 1 && data.section === 'body') {
+                        const val = parseInt(data.cell.text[0]);
+                        if (val === 100) data.cell.styles.textColor = [22, 163, 74];
+                        else if (val > 0) data.cell.styles.textColor = [217, 119, 6];
+                        else data.cell.styles.textColor = [220, 38, 38];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            });
+
+            // Negligenciadas
+            if (neglected.length > 0) {
+                const alertY = doc.lastAutoTable.finalY + 10;
+                if (alertY < 260) {
+                    doc.setFontSize(12);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(220, 38, 38);
+                    doc.text('ALERTA: Telas Negligenciadas', 14, alertY);
+
+                    const alertData = neglected.map(m => [
+                        m.key,
+                        m.pct + '%',
+                        m.history.length === 0 ? 'Nunca limpa' : 'Ha ' + m.daysSinceClean + ' dias'
+                    ]);
+                    doc.autoTable({
+                        startY: alertY + 5,
+                        head: [['Tela', 'Progresso', 'Status']],
+                        body: alertData,
+                        styles: { fontSize: 8 },
+                        headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold' },
+                    });
+                }
+            }
+
+            // Snapshots 3D - 1 por pagina, tamanho maximo
+            try {
+                const pageH = doc.internal.pageSize.getHeight();
+                const snapIds = [
+                    { id: 'rpt-3d-v1', label: 'Frente Esquerda (Externas 01-08, 15-21)' },
+                    { id: 'rpt-3d-v2', label: 'Frente Direita (Externas 05-14)' },
+                    { id: 'rpt-3d-v3', label: 'Frente Interna (Internas 12-20)' },
+                    { id: 'rpt-3d-v4', label: 'Tras Interna (Internas 01-11, 21)' },
+                    { id: 'rpt-3d-v5', label: 'Vista Superior (Planta Completa)' }
+                ];
+
+                snapIds.forEach(snap => {
+                    const canvas = document.getElementById(snap.id);
+                    if (!canvas || canvas.width === 0) return;
+
+                    doc.addPage();
+                    doc.setFillColor(30, 41, 59);
+                    doc.rect(0, 0, pageW, 22, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(snap.label, 14, 15);
+
+                    const imgData = canvas.toDataURL('image/png');
+                    const ratio = canvas.height / canvas.width;
+                    const imgW = pageW - 20;
+                    const imgH = imgW * ratio;
+                    const maxH = pageH - 32;
+                    const finalH = Math.min(imgH, maxH);
+                    const finalW = finalH < imgH ? finalH / ratio : imgW;
+                    const x = (pageW - finalW) / 2;
+                    doc.addImage(imgData, 'PNG', x, 26, finalW, finalH);
+                });
+            } catch(e) { console.warn('Erro ao adicionar snapshots 3D:', e); }
+
+            doc.save('relatorio-telas-' + dateStr.replace(/\//g, '-') + '.pdf');
         }
 
         // init3D is called by Firebase auth callback above
