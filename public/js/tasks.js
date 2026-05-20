@@ -95,6 +95,7 @@ function subscribeToTasks() {
             });
         }
         isFirstLoad = false;
+
         if (state.calendarView === 'week') renderWeeklyView();
         else renderCalendar();
         if (state.selectedDate) renderTaskList(state.selectedDate.toISOString().split('T')[0]);
@@ -412,7 +413,7 @@ function renderCalendar() {
             <div class="flex justify-between items-start">${dayNum}${checkIcon}</div>
             <div class="mt-auto flex flex-col gap-0.5">${desktopTags}</div>
             <div class="cal-dots-row">${mobileDots}</div>
-            ${heatBadge}${heatBar}`;
+            ${heatBar}${heatBadge}`;
         grid.appendChild(cell);
     }
     lucide.createIcons();
@@ -636,7 +637,7 @@ function renderTaskList(dateKey) {
     const isAdmin = state.user && state.user.role === 'admin';
 
     dayTasks.forEach(task => {
-        const isEditing = state.editingTaskId === task.id;
+        const isEditing = state.editingTaskId === task.id && (!state.editingTaskDate || state.editingTaskDate === task.date);
         let contentHTML = '';
         const recurIcon = (task.recurrence && task.recurrence !== 'none') ? `<span class="ml-2 text-[9px] text-slate-400"><i data-lucide="refresh-cw" class="w-3 h-3 inline"></i></span>` : '';
 
@@ -670,7 +671,7 @@ function renderTaskList(dateKey) {
         } else {
             let checkbox = '';
             if (!state.user) {
-                checkbox = `<div class="w-7 h-7 rounded-full border-2 border-[#e5e7eb] mr-3 bg-[#fafafa] flex-shrink-0"></div>`;
+                checkbox = '';
             } else if (canEdit) {
                 checkbox = `<button onclick="toggleTask('${task.id}')" class="w-7 h-7 rounded-full border-2 mr-3 flex items-center justify-center transition-all flex-shrink-0 ${task.completed ? 'bg-[#22c55e] border-[#22c55e] shadow-md shadow-green-500/20 scale-105' : 'border-[#cbd5e1] hover:border-[#e41e26] hover:bg-[#fef2f2]'}">${task.completed ? '<i data-lucide="check" class="text-white w-3.5 h-3.5"></i>' : ''}</button>`;
             } else {
@@ -686,7 +687,7 @@ function renderTaskList(dateKey) {
                     : `<div class="w-6 h-6 rounded-full bg-[#e41e26] text-white flex items-center justify-center text-[9px] font-black shadow-sm border-2 border-white">${trimmed.charAt(0)}</div>`;
                 return `<div class="flex items-center gap-2 px-3 py-1.5 rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] text-[#151515]">${avatarHTML}<span class="text-[11px] font-bold">${trimmed}</span></div>`;
             }).join('');
-            let editBtn = isAdmin ? `<button onclick="enableEdit('${task.id}')" class="text-[#cbd5e1] hover:text-[#e41e26] p-1.5 rounded-lg hover:bg-[#fef2f2] transition-all"><i data-lucide="pencil" class="w-4 h-4"></i></button>` : '';
+            let editBtn = isAdmin ? `<button onclick="enableEdit('${task.id}','${task.date}')" class="text-[#cbd5e1] hover:text-[#e41e26] p-1.5 rounded-lg hover:bg-[#fef2f2] transition-all"><i data-lucide="pencil" class="w-4 h-4"></i></button>` : '';
             let deleteBtn = isAdmin ? `<button onclick="askDelete('task', '${task.id}')" class="text-[#cbd5e1] hover:text-[#ef4444] p-1.5 rounded-lg hover:bg-[#fef2f2] transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : '';
 
             contentHTML = `
@@ -857,12 +858,14 @@ window.addTask = async function(e) {
             let baseDocRef = null;
             let duplicateFound = false;
 
+            const startMonth = baseDate.getMonth();
             const startYear = baseDate.getFullYear();
             let loopDate = new Date(baseDate);
             let orderCount = 0;
             const baseDateStr = baseDate.toISOString().split('T')[0];
 
-            while (loopDate.getFullYear() === startYear) {
+            // Repetir somente dentro do mês atual (não o ano todo)
+            while (loopDate.getMonth() === startMonth && loopDate.getFullYear() === startYear) {
                 if (state.selectedRecurrenceDays.includes(loopDate.getDay())) {
                     const { docRef, dateStr } = getCollectionPath(loopDate, titleVal);
 
@@ -980,7 +983,12 @@ window.toggleTask = async function(id) {
 }
 
 window.renderTaskList = renderTaskList;
-window.enableEdit = function(taskId) { state.editingTaskId = taskId; renderTaskList(state.selectedDate.toISOString().split('T')[0]); }
+window.enableEdit = function(taskId, taskDate) {
+    state.editingTaskId = taskId;
+    state.editingTaskDate = taskDate || null;
+    const dateKey = taskDate || state.selectedDate.toISOString().split('T')[0];
+    renderTaskList(dateKey);
+}
 
 window.prepareComment = async function(taskId) {
     const task = state.tasks.find(t => t.id === taskId);
@@ -1389,11 +1397,11 @@ function renderStats() {
         cmpIcon.className = 'w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-white/30';
     } else if (diff > 0) {
         cmpText.textContent = `+${diff}% melhor que ${cmpName} (${prevPct}%)`;
-        cmpIcon.innerHTML = '<i data-lucide="trending-up" class="w-3 h-3"></i>';
+        cmpIcon.innerHTML = '<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17l9.2-9.2M17 17V7H7"/></svg>';
         cmpIcon.className = 'w-5 h-5 rounded-full bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e]';
     } else if (diff < 0) {
         cmpText.textContent = `${diff}% abaixo de ${cmpName} (${prevPct}%)`;
-        cmpIcon.innerHTML = '<i data-lucide="trending-down" class="w-3 h-3"></i>';
+        cmpIcon.innerHTML = '<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7l9.2 9.2M17 7v10H7"/></svg>';
         cmpIcon.className = 'w-5 h-5 rounded-full bg-[#ef4444]/20 flex items-center justify-center text-[#ef4444]';
     } else {
         cmpText.textContent = `Igual a ${cmpName} (${prevPct}%)`;

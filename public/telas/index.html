@@ -954,7 +954,7 @@
     <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, collection, collectionGroup, getDocs, doc, setDoc, getDoc, addDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBMpxNUHou-mXL4lvWhSHiMWbhRWBjqGZg",
@@ -968,6 +968,103 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+
+    // ─── FIREBASE TELAS: caminhos separados (NÃO mexe no calendário normal) ───
+    // Doc ID limpo: "TELA 01 (INTERNA)" → "tela_01_interna"
+    function telaDocId(name) {
+        return name.toLowerCase().replace(/\s/g, '_').replace(/[()]/g, '');
+    }
+
+    // dateKey "2026-05-20" → { year: "2026", monthDay: "05_20" }
+    function splitDateKey(dateKey) {
+        const [y, m, d] = dateKey.split('-');
+        return { year: y, monthDay: m + '_' + d };
+    }
+
+    window._telasScheduleData = {};
+    window._telasProgressData = {};
+
+    // ── SCHEDULE: telas_schedule/{year}/dias/{mm_dd} ──
+    window.saveTelasSchedule = async function(dateKey, tasks) {
+        try {
+            const { year, monthDay } = splitDateKey(dateKey);
+            await setDoc(doc(db, 'telas_schedule', year, 'dias', monthDay), {
+                dateKey: dateKey,
+                tasks: tasks || []
+            });
+        } catch(e) { console.error('[Telas] Erro save schedule:', e); }
+    };
+
+    // ── PROGRESS: telas_progress/{tela_id} ──
+    window.saveTelaProgress = async function(telaName, data) {
+        try {
+            await setDoc(doc(db, 'telas_progress', telaDocId(telaName)), {
+                telaName: telaName,
+                progressValue: data.progressValue || 0,
+                savedCells: Array.from(data.savedCells || new Array(25).fill(false)),
+                filledCells: Array.from(data.filledCells || new Array(25).fill(false)),
+                observation: data.observation || ''
+            }, { merge: true });
+        } catch(e) { console.error('[Telas] Erro save progress:', e); }
+    };
+
+    // ── HISTORY: telas_progress/{tela_id}/historico/{yyyy-mm-dd_HHhMM} ──
+    window.saveTelaHistoryEntry = async function(telaName, entry) {
+        try {
+            const d = new Date(entry.date || Date.now());
+            const docName = d.getFullYear()
+                + '-' + String(d.getMonth()+1).padStart(2,'0')
+                + '-' + String(d.getDate()).padStart(2,'0')
+                + '_' + String(d.getHours()).padStart(2,'0')
+                + 'h' + String(d.getMinutes()).padStart(2,'0');
+            const safeEntry = {
+                pct: entry.pct || 0,
+                cells: entry.cells || 0,
+                photo: entry.photo || '',
+                date: entry.date || new Date().toISOString(),
+                who: entry.who || '',
+                gridSnapshot: Array.from(entry.gridSnapshot || [])
+            };
+            await setDoc(doc(db, 'telas_progress', telaDocId(telaName), 'historico', docName), safeEntry);
+        } catch(e) { console.error('[Telas] Erro save history:', e); }
+    };
+
+    // ── LOAD HISTORY: telas_progress/{tela_id}/historico ──
+    window.loadTelaHistory = async function(telaName) {
+        try {
+            const snap = await getDocs(query(
+                collection(db, 'telas_progress', telaDocId(telaName), 'historico'),
+                orderBy('date')
+            ));
+            const history = [];
+            snap.forEach(d => history.push(d.data()));
+            return history;
+        } catch(e) { console.error('[Telas] Erro load history:', e); return []; }
+    };
+
+    // ── LOAD ALL ON STARTUP ──
+    async function loadTelasFromFirestore() {
+        try {
+            // Schedule: collectionGroup "dias" pega todos os dias de todos os anos
+            const schedSnap = await getDocs(collectionGroup(db, 'dias'));
+            schedSnap.forEach(d => {
+                const data = d.data();
+                if (data.dateKey && data.tasks && data.tasks.length > 0) {
+                    window._telasScheduleData[data.dateKey] = data.tasks;
+                }
+            });
+
+            // Progress: leitura direta da collection telas_progress
+            const progSnap = await getDocs(collection(db, 'telas_progress'));
+            progSnap.forEach(d => {
+                const data = d.data();
+                if (data.telaName) {
+                    window._telasProgressData[data.telaName] = data;
+                }
+            });
+            console.log('[Telas] Dados carregados:', Object.keys(window._telasScheduleData).length, 'dias,', Object.keys(window._telasProgressData).length, 'telas');
+        } catch(e) { console.error('[Telas] Erro load data:', e); }
+    }
 
     // Logout
     window.doLogout = async function() {
@@ -1117,9 +1214,16 @@
         // Carregar colaboradores para autocomplete funcionar
         loadTeamList();
 
+        // Carregar dados de telas do Firebase (caminhos separados)
+        await loadTelasFromFirestore();
+
         // Iniciar 3D e fade out loading
         const loadingEl = document.getElementById('auth-loading');
         if (typeof init3D === 'function') init3D();
+
+        // Aplicar dados carregados do Firebase aos objetos 3D
+        if (typeof applyLoadedTelasData === 'function') applyLoadedTelasData();
+
         setTimeout(() => {
             loadingEl.classList.add('fade-out');
             setTimeout(() => { loadingEl.classList.add('hidden'); }, 500);
@@ -1145,9 +1249,48 @@
         let forklifts = [];
         let forkliftMeshes = [];
 
-        let totalScreens = 42;
+        let totalScreens = 36;
         const clock = new THREE.Clock();
         const globalUniforms = { time: { value: 0.0 } };
+
+        // Aplicar dados carregados do Firebase às telas 3D
+        function applyLoadedTelasData() {
+            // Aplicar schedule (dayTasks)
+            const schedData = window._telasScheduleData || {};
+            Object.keys(schedData).forEach(dateKey => {
+                dayTasks[dateKey] = schedData[dateKey];
+            });
+
+            // Aplicar progresso às telas 3D
+            const progData = window._telasProgressData || {};
+            Object.keys(progData).forEach(telaName => {
+                const mesh = edges[telaName];
+                if (!mesh) return;
+                const data = progData[telaName];
+                mesh.userData.progressValue = data.progressValue || 0;
+                mesh.userData.savedCells = data.savedCells ? Array.from(data.savedCells) : new Array(25).fill(false);
+                mesh.userData.filledCells = data.filledCells ? Array.from(data.filledCells) : new Array(25).fill(false);
+                mesh.userData.observation = data.observation || '';
+                // Atualizar visual do material
+                if (mesh.material && mesh.material.userData && mesh.material.userData.progress) {
+                    mesh.material.userData.progress.value = (data.progressValue || 0) / 100.0;
+                }
+                // Atualizar grid texture se houver cells salvos
+                if (data.savedCells) {
+                    data.savedCells.forEach((filled, i) => {
+                        if (filled && typeof updateGridCell === 'function') {
+                            updateGridCell(mesh, i, true);
+                        }
+                    });
+                }
+            });
+
+            // Atualizar UI
+            if (typeof updateProgress === 'function') updateProgress();
+            if (typeof renderWeekCalendar === 'function') renderWeekCalendar();
+            if (typeof updatePulsatingTelas === 'function') updatePulsatingTelas();
+            console.log('[Telas] Dados aplicados:', Object.keys(dayTasks).length, 'dias,', Object.keys(progData).length, 'telas com progresso');
+        }
 
         let isFPSMode = false;
         let isInsideWarehouse = true;
@@ -1561,6 +1704,16 @@
             createCurvedWall('TELA 08',  [5.5, floorY, -13.5],  Math.PI * 0.75, 2, [fenceHeight, wallThickness, baseWallHeight, topWallHeight]);
             createCurvedWall('TELA 14',  [5.5, floorY,   5.5],  Math.PI * 0.25, 2, [fenceHeight, wallThickness, baseWallHeight, topWallHeight]);
             createCurvedWall('TELA 15', [-5.5, floorY,   5.5], -Math.PI * 0.25, 2, [fenceHeight, wallThickness, baseWallHeight, topWallHeight]);
+
+            // Telas 04-09: lado externo é parede, não tela
+            ['TELA 04', 'TELA 05', 'TELA 06', 'TELA 07', 'TELA 08', 'TELA 09'].forEach(id => {
+                const key = id + ' (EXTERNA)';
+                const mesh = edges[key];
+                if (mesh) {
+                    mesh.material = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+                    delete edges[key];
+                }
+            });
 
             // PAREDES SOLIDAS (sem interacao)
             createSolidCurvedWall([-7.0, floorY, -6.5], -Math.PI * 0.75, 0.5, [totalWallHeight, thinThickness]);
@@ -2390,8 +2543,17 @@
             });
         }
 
-        function openValidationModal(edgeId) {
+        async function openValidationModal(edgeId) {
             currentSelectedEdge = edgeId; const mesh = edges[edgeId];
+
+            // Carregar histórico do Firebase sob demanda
+            if (window.loadTelaHistory && !mesh.userData._historyLoaded) {
+                try {
+                    const history = await window.loadTelaHistory(edgeId);
+                    if (history.length > 0) mesh.userData.cleanHistory = history;
+                    mesh.userData._historyLoaded = true;
+                } catch(e) { console.error('[Telas] Erro load history:', e); }
+            }
 
             activeHudSprite = mesh.userData.hudLabel;
             const vector = new THREE.Vector3(); activeHudSprite.getWorldPosition(vector); vector.project(camera);
@@ -2577,6 +2739,20 @@
             // Renderizar histórico atualizado
             renderCleaningHistory(mesh);
             updateTelaProgress();
+
+            // Salvar no Firebase (progresso + histórico)
+            if (window.saveTelaProgress) {
+                window.saveTelaProgress(currentSelectedEdge, {
+                    progressValue: mesh.userData.progressValue,
+                    savedCells: mesh.userData.savedCells,
+                    filledCells: mesh.userData.filledCells,
+                    observation: mesh.userData.observation
+                });
+            }
+            if (window.saveTelaHistoryEntry) {
+                const lastEntry = mesh.userData.cleanHistory[mesh.userData.cleanHistory.length - 1];
+                window.saveTelaHistoryEntry(currentSelectedEdge, lastEntry);
+            }
 
             const btn = event.currentTarget; const btnText = document.getElementById('btn-text');
             const successMsg = sliderVal === 100 ? 'LIMPEZA CONCLUÍDA!' : 'PROGRESSO SALVO!';
@@ -2774,6 +2950,7 @@
             }
 
             // Reset wizard
+            editingTaskIdx = null;
             daySelectedTelas = [];
             daySelectedCollabs = [];
             document.getElementById('day-selected-collabs').innerHTML = '';
@@ -2799,36 +2976,45 @@
 
         function renderDayTasks() {
             const list = document.getElementById('day-task-list');
-            const empty = document.getElementById('day-empty-state');
             const tasks = dayTasks[selectedDayKey] || [];
 
             list.innerHTML = '';
             if (tasks.length === 0) {
-                list.appendChild(empty);
-                empty.style.display = 'flex';
+                list.innerHTML = `<div class="flex flex-col items-center justify-center py-16 text-center">
+                    <div class="w-14 h-14 rounded-full bg-[#fafafa] border border-[#e5e7eb] flex items-center justify-center mb-4 text-[#cbd5e1]">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <p class="text-[11px] text-[#94a3b8] font-bold uppercase tracking-[0.18em]">Nenhuma atividade agendada</p>
+                </div>`;
                 return;
             }
-            empty.style.display = 'none';
 
             tasks.forEach((task, idx) => {
                 const item = document.createElement('div');
                 item.className = 'bg-white p-4 rounded-[14px] border border-[#e5e7eb] transition-all hover:border-[#e41e26]/20';
                 item.style.cssText = `box-shadow:0 2px 8px rgba(15,23,42,0.03); animation: teamCardIn 400ms cubic-bezier(.22,.78,.24,1) both; animation-delay: ${idx * 40}ms`;
-                const collabsHtml = task.collabs.map(c =>
-                    `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-[#6b7280] bg-[#fafafa] px-2 py-1 rounded-lg border border-[#e5e7eb]">
-                        <span class="w-4 h-4 rounded-full bg-[#e41e26] text-white flex items-center justify-center text-[7px] font-black">${c.charAt(0)}</span>
-                        ${c}
-                    </span>`
-                ).join('');
+                const collabsHtml = task.collabs.length > 0
+                    ? task.collabs.map(c =>
+                        `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-[#6b7280] bg-[#fafafa] px-2 py-1 rounded-lg border border-[#e5e7eb]">
+                            <span class="w-4 h-4 rounded-full bg-[#e41e26] text-white flex items-center justify-center text-[7px] font-black">${c.charAt(0)}</span>
+                            ${c}
+                        </span>`
+                    ).join('')
+                    : `<span class="text-[10px] text-[#cbd5e1] font-bold italic">Sem responsável</span>`;
+                const editBtn = window.currentUserRole === 'admin'
+                    ? `<button onclick="editDayTask(${idx})" class="p-1 text-[#cbd5e1] hover:text-[#3b82f6] transition-colors" title="Editar colaboradores">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                       </button>`
+                    : '';
                 const deleteBtn = window.currentUserRole === 'admin'
-                    ? `<button onclick="removeDayTask(${idx})" class="p-1 text-[#cbd5e1] hover:text-[#e41e26] transition-colors">
+                    ? `<button onclick="removeDayTask(${idx})" class="p-1 text-[#cbd5e1] hover:text-[#e41e26] transition-colors" title="Remover">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                        </button>`
                     : '';
                 item.innerHTML = `
                     <div class="flex justify-between items-start">
                         <h4 class="font-extrabold text-[#151515] text-[13px] tracking-tight">${task.title}</h4>
-                        ${deleteBtn}
+                        <div class="flex items-center gap-1">${editBtn}${deleteBtn}</div>
                     </div>
                     <div class="flex flex-wrap gap-1.5 mt-2">${collabsHtml}</div>
                 `;
@@ -2838,6 +3024,7 @@
 
         // ─── WIZARD DE PASSOS ───
         let daySelectedTelas = [];
+        let editingTaskIdx = null;
 
         window.dayGoToStep = function(step) {
             const step1 = document.getElementById('day-step-1');
@@ -2845,11 +3032,12 @@
             const dots = document.getElementById('day-step-dots').children;
 
             if (step === 1) {
+                editingTaskIdx = null;
                 step1.classList.remove('hidden'); step2.classList.add('hidden');
                 dots[0].style.width = '16px'; dots[0].style.background = '#e41e26';
                 dots[1].style.width = '8px'; dots[1].style.background = 'rgba(228,30,38,0.2)';
             } else {
-                if (daySelectedTelas.length === 0) return;
+                if (editingTaskIdx === null && daySelectedTelas.length === 0) return;
                 step1.classList.add('hidden'); step2.classList.remove('hidden');
                 dots[0].style.width = '8px'; dots[0].style.background = 'rgba(228,30,38,0.2)';
                 dots[1].style.width = '16px'; dots[1].style.background = '#e41e26';
@@ -2862,7 +3050,8 @@
             grid.innerHTML = '';
             for (let i = 1; i <= 18; i++) {
                 const num = String(i).padStart(2, '0');
-                const sides = ['INTERNA', 'EXTERNA'];
+                const internOnly = [4,5,6,7,8,9];
+                const sides = internOnly.includes(i) ? ['INTERNA'] : ['INTERNA', 'EXTERNA'];
                 sides.forEach(side => {
                     const name = `TELA ${num} (${side})`;
                     const alreadyAssigned = existing.includes(name);
@@ -2891,18 +3080,28 @@
             }
         }
 
-        // Adicionar telas ao dia
+        // Adicionar telas ao dia (ou salvar edição)
         window.addDayTask = function() {
-            if (daySelectedTelas.length === 0) return;
             if (!selectedDayKey) return;
 
-            if (!dayTasks[selectedDayKey]) dayTasks[selectedDayKey] = [];
-
-            daySelectedTelas.forEach(tela => {
-                if (!dayTasks[selectedDayKey].some(t => t.title === tela)) {
-                    dayTasks[selectedDayKey].push({ title: tela, collabs: [...daySelectedCollabs] });
+            if (editingTaskIdx !== null) {
+                // Modo edição: atualizar colaboradores da task existente
+                const tasks = dayTasks[selectedDayKey] || [];
+                if (editingTaskIdx >= 0 && editingTaskIdx < tasks.length) {
+                    tasks[editingTaskIdx].collabs = [...daySelectedCollabs];
                 }
-            });
+                editingTaskIdx = null;
+            } else {
+                // Modo normal: adicionar novas telas
+                if (daySelectedTelas.length === 0) return;
+                if (!dayTasks[selectedDayKey]) dayTasks[selectedDayKey] = [];
+
+                daySelectedTelas.forEach(tela => {
+                    if (!dayTasks[selectedDayKey].some(t => t.title === tela)) {
+                        dayTasks[selectedDayKey].push({ title: tela, collabs: [...daySelectedCollabs] });
+                    }
+                });
+            }
 
             daySelectedTelas = [];
             daySelectedCollabs = [];
@@ -2913,14 +3112,46 @@
             renderDayTasks();
             renderWeekCalendar();
             updatePulsatingTelas();
+
+            // Salvar no Firebase
+            if (window.saveTelasSchedule) {
+                window.saveTelasSchedule(selectedDayKey, dayTasks[selectedDayKey] || []);
+            }
+        };
+
+        window.editDayTask = function(idx) {
+            const tasks = dayTasks[selectedDayKey] || [];
+            if (idx < 0 || idx >= tasks.length) return;
+
+            editingTaskIdx = idx;
+            const task = tasks[idx];
+
+            // Preencher colaboradores atuais
+            daySelectedCollabs = [...task.collabs];
+            renderDayCollabChips();
+
+            // Ir direto para step 2
+            const step1 = document.getElementById('day-step-1');
+            const step2 = document.getElementById('day-step-2');
+            const dots = document.getElementById('day-step-dots').children;
+            step1.classList.add('hidden');
+            step2.classList.remove('hidden');
+            dots[0].style.width = '8px'; dots[0].style.background = 'rgba(228,30,38,0.2)';
+            dots[1].style.width = '16px'; dots[1].style.background = '#e41e26';
         };
 
         window.removeDayTask = function(idx) {
             if (!selectedDayKey || !dayTasks[selectedDayKey]) return;
             dayTasks[selectedDayKey].splice(idx, 1);
             renderDayTasks();
+            renderTelaGrid();
             renderWeekCalendar();
             updatePulsatingTelas();
+
+            // Salvar no Firebase
+            if (window.saveTelasSchedule) {
+                window.saveTelasSchedule(selectedDayKey, dayTasks[selectedDayKey] || []);
+            }
         };
 
         // Autocomplete de colaboradores (startsWith igual calendário principal)

@@ -155,11 +155,10 @@ window.handleRealPhoto = function(input, taskId) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
 
-        // Bloqueia upload se não houver colaborador atribuído (exceto admin)
-        const isAdmin = state.user && state.user.role === 'admin';
+        // Bloqueia upload se não houver colaborador atribuído
         const task = state.tasks.find(t => t.id === taskId);
-        if (!isAdmin && task && (!task.assignee || task.assignee.trim() === '')) {
-            showCustomAlert('Atribua um colaborador antes de adicionar foto.');
+        if (task && (!task.assignee || task.assignee.trim() === '')) {
+            showCustomAlert('Atribua um colaborador antes de adicionar foto. Esta atividade não foi realizada sem um responsável.');
             input.value = '';
             return;
         }
@@ -441,6 +440,7 @@ window.handleEditSearch = function(input, taskId) {
             item.onclick = () => {
                 input.value = c.nome;
                 suggestionsBox.classList.add('hidden');
+                addLocalTag(taskId);
             };
             suggestionsBox.appendChild(item);
         });
@@ -476,7 +476,11 @@ window.saveEdit = async function(taskId) {
     const names = container ? Array.from(container.children).map(child => String(child.dataset.name || '').trim()).filter(Boolean) : [];
     const newAssignees = names.join(', ');
 
-    const task = state.tasks.find(t => t.id === taskId);
+    // Buscar task por id + date (tarefas recorrentes tem o mesmo id em dias diferentes)
+    const editDate = state.editingTaskDate;
+    const task = editDate
+        ? state.tasks.find(t => t.id === taskId && t.date === editDate)
+        : state.tasks.find(t => t.id === taskId);
     if (!newTitle || !task) return;
 
     const newAssigneeIds = names
@@ -493,11 +497,24 @@ window.saveEdit = async function(taskId) {
         const oldTitle = task.title;
         const oldAssignees = task.assignee || '';
 
+        // Sair do modo edição ANTES do updateDoc (evita re-render em modo edição)
+        state.editingTaskId = null;
+
+        // Atualizar state.tasks localmente ANTES do updateDoc
+        task.title = newTitle;
+        task.assignee = newAssignees;
+        task.assigneeIds = newAssigneeIds;
+
+        // Renderizar imediatamente com dados locais
+        renderTaskList(task.date);
+
         await updateDoc(doc(db, task.path), {
             title: newTitle,
             assignee: newAssignees,
             assigneeIds: newAssigneeIds
         });
+
+        showCustomAlert('ALTERACOES SALVAS!', 'success');
 
         // Log detalhado
         let logParts = [];
@@ -531,10 +548,6 @@ window.saveEdit = async function(taskId) {
                 date: String(task.date || '')
             });
         }
-
-        state.editingTaskId = null;
-        renderTaskList(state.selectedDate.toISOString().split('T')[0]);
-        showCustomAlert('ALTERACOES SALVAS!', 'success');
 
     } catch (e) {
         console.error(e);

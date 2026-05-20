@@ -67,6 +67,25 @@ service cloud.firestore {
       );
     }
 
+    // ─── TELAS ESTOQUE (caminhos separados do calendário) ───
+    // Schedule: telas_schedule/{year}/dias/{mm_dd}
+    match /telas_schedule/{year}/dias/{dayId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Progress: telas_progress/{telaId}
+    match /telas_progress/{telaId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+
+    // Historico: telas_progress/{telaId}/historico/{entryId}
+    match /telas_progress/{telaId}/historico/{entryId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
